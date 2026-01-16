@@ -8,7 +8,7 @@
   <style>
     :root{
       --bg:#fff;
-      --fg:#111;
+      --fg:#541212;
       --muted:#6b7280;
       --line:#e5e7eb;
       --card:#f9fafb;
@@ -179,7 +179,7 @@
     .drawer__body{padding:10px;overflow:auto}
     .m-sec{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
     .m-btn{
-      width:100%;text-align:left;padding:12px;border:0;background:#fff;cursor:pointer;
+      width:100%;text-align:left;padding:12px;border:0;background:#d9d6c5;cursor:pointer;
       display:flex;justify-content:space-between;align-items:center;font-weight:700;
     }
     .m-btn:hover{background:var(--card)}
@@ -222,9 +222,40 @@
     .card{
       border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;
       transition:transform .12s ease;
-    }
+      }
     .card:hover{transform:translateY(-2px)}
+    .card:hover {
+    box-shadow: 0 6px 18px rgba(38, 47, 37, 0.30);
+    }
+
     .card img{height:170px;object-fit:cover}
+    .card .img-swap{
+      position: relative;
+      width: 100%;
+      height: 170px;         
+      overflow: hidden;
+      }
+
+    .card .img-swap img{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity .4s ease;
+      }
+    .card .img-swap img.hover{
+      opacity: 0;
+    }
+
+    @media (hover:hover) and (pointer:fine){
+     .card:hover .img-swap img.base{ opacity: 0; }
+    .card:hover .img-swap img.hover{ opacity: 1; }
+
+    }
+    .card.is-hover .img-swap img.base{ opacity: 0; }
+    .card.is-hover .img-swap img.hover{ opacity: 1; }
+
     .card__body{padding:10px}
     .card__body strong{display:block;font-size:14px}
     .card__body span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
@@ -333,6 +364,25 @@
       line-height:1.6;
     }
     .copyright a{ text-decoration:underline; }
+    .card .img-swap{
+    position: relative;
+     width: 100%;
+     height: 170px;
+    overflow: hidden;
+}
+.card .img-swap img{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity .35s ease;
+}
+.card .img-swap img.hover{ opacity: 0; }
+
+.card:hover .img-swap img.base{ opacity: 0; }
+.card:hover .img-swap img.hover{ opacity: 1; }
+
   </style>
 </head>
 
@@ -356,7 +406,7 @@
       </div>
     </div>
 
-    <!-- Desktop Nav with Mega Menus -->
+    <!-- TODAS LAS CATEGOS -->
     <nav class="nav" aria-label="Navegación principal">
       <div class="nav__inner">
         <div class="nav-item"><a class="nav-link" href="#/">INICIO</a></div>
@@ -370,36 +420,47 @@
               <div class="mega__col">
                 <p class="mega__title">Categorías</p>
                 <div class="mega__list">
-                  <a href="#/collares/gargantillas"><span>Ver Gargantillas</span><span class="tag">ver</span></a>
-                  <a href="#/collares/corbatines"><span>Ver Corbatines</span><span class="tag">ver</span></a>
-                  <a href="#/collares/largos"><span>Ver Collares Largos</span><span class="tag">ver</span></a>
-                  <a href="#/collares/con-perla"><span>Ver Con Perla</span><span class="tag">ver</span></a>
-                  <a href="#/collares/iconicos"><span>Ver Icónicos</span><span class="tag">top</span></a>
+                  <a href="#/collares/gargantillas"><span>Para Caballero</span><span class="tag">ver</span></a>
+                  <a href="#/collares/corbatines"><span>Para Dama</span><span class="tag">ver</span></a>
+                  </div>
+                </div>
                 </div>
               </div>
-
             </div>
-          </div>
-        </div>
+
 
         <!-- ARETES -->
         <div class="nav-item">
-          <a class="nav-link" href="#/aretes" aria-haspopup="true">ARETES ▾</a>
-          <div class="mega" role="menu">
+          <a class="nav-link" href="#/aretes" aria-haspopup="true">ARETES </a>
+            <a href="#/aretes/arracadas">
+              <div>
+              <div>
+            </div>
+          <div>
+        </div>
+
+
+        <!-- PULSERAS -->
+              </div>
+              </div>
+        <div class="nav-item">
+        <a class="nav-link" href="#/pulseras" aria-haspopup="true">PULSERAS ▾</a>
+        <div class="mega" role="menu">
             <div class="mega__grid">
               <div class="mega__col">
                 <p class="mega__title">Categorías</p>
                 <div class="mega__list">
-                  <a href="#/aretes/arracadas"><span>Ver Arracadas</span><span class="tag">ver</span></a>
-                  <a href="#/aretes/earcuffs"><span>Ver Earcuffs</span><span class="tag">ver</span></a>
-                  <a href="#/aretes/basicos"><span>Ver Básicos</span><span class="tag">ver</span></a>
-                </div>
+                  <a href="#/aretes/arracadas"><span>Para Caballero</span><span class="tag">ver</span></a>
+                  <a href="#/aretes/earcuffs"><span>Para Dama</span><span class="tag">ver</span></a>
+                  </div>
+               </div>
               </div>
-          </div>
-        </div>
-
-        <div class="nav-item"><a class="nav-link" href="#/pulseras">PULSERAS</a></div>
-        <div class="nav-item"><a class="nav-link" href="#/last-chance">LAST CHANCE</a></div>
+        
+        <!-- ANILLOS -->
+              </div>
+              </div>
+        <div class="nav-item"><a class="nav-link" href="#/Anillos">Anillos</a></div>
+      </div>
       </div>
     </nav>
   </header>
@@ -412,25 +473,22 @@
       <button class="icon-btn" id="closeMenu" aria-label="Cerrar menú">✕</button>
     </div>
     <div class="drawer__body">
-      <div class="m-sec"><a class="m-btn" href="#/">INICIO <span>→</span></a></div>
+      <div class="m-sec"><a class="m-btn" href="#/">INICIO <span>▾</span></a></div>
 
       <div class="m-sec" data-open="false">
         <button class="m-btn" type="button" data-toggle="mobile">COLLARES <span>▾</span></button>
         <div class="m-panel">
           <div class="m-links">
-            <a href="#/collares/gargantillas">Ver Gargantillas</a>
-            <a href="#/collares/corbatines">Ver Corbatines</a>
-            <a href="#/collares/largos">Ver Largos</a>
-            <a href="#/collares/con-perla">Ver Con Perla</a>
-            <a href="#/collares/iconicos">Ver Icónicos</a>
+            <a href="#/collares/gargantillas">Para Caballero</a>
+            <a href="#/collares/corbatines">Para Dama</a>
           </div>
           <div class="m-images">
             <a class="img-card" href="#/collares/gargantillas">
-              <img src="images/collares-1.jpg" alt="Gargantillas">
+              <img src="imagenes/1.jpeg" alt="Gargantillas">
               <div class="img-card__body"><strong>Gargantillas</strong><span>Explora</span></div>
             </a>
             <a class="img-card" href="#/collares/iconicos">
-              <img src="images/collares-2.jpg" alt="Icónicos">
+              <img src="imagenes/1.jpeg" alt="Icónicos">
               <div class="img-card__body"><strong>Icónicos</strong><span>Explora</span></div>
             </a>
           </div>
@@ -439,18 +497,19 @@
 
       <div class="m-sec" data-open="false">
         <button class="m-btn" type="button" data-toggle="mobile">ARETES <span>▾</span></button>
+      </div>
+
+      <div class="m-sec" data-open="false">
+        <button class="m-btn" type="button" data-toggle="mobile">PULSERAS <span>▾</span></button>
         <div class="m-panel">
           <div class="m-links">
-            <a href="#/aretes/arracadas">Ver Arracadas</a>
-            <a href="#/aretes/earcuffs">Ver Earcuffs</a>
-            <a href="#/aretes/basicos">Ver Básicos</a>
-            <a href="#/p/aretes-amapola">Aretes Amapola (demo)</a>
+            <a href="#/collares/arracadas">Para Caballero</a>
+            <a href="#/collares/earcuffs">Para Dama</a>
           </div>
         </div>
       </div>
-
-      <div class="m-sec"><a class="m-btn" href="#/pulseras">PULSERAS <span>→</span></a></div>
-      <div class="m-sec"><a class="m-btn" href="#/last-chance">LAST CHANCE <span>→</span></a></div>
+            
+      <div class="m-sec"><a class="m-btn" href="#/last-chance">LAST CHANCE <span>▾</span></a></div>
     </div>
   </aside>
 
@@ -479,25 +538,25 @@
       </a>
 
       <!-- Phone -->
-      <a class="footer-contact__item" href="TEL:+011234567890">
+      <a class="footer-contact__item" href="TEL:+52 33 2536 2722">
         <span class="footer-contact__icon" aria-hidden="true">
           <!-- Phone icon (SVG) -->
           <svg viewBox="0 0 24 24">
             <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.85 21 3 13.15 3 3a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.24 1.01l-2.21 2.2z"/>
           </svg>
         </span>
-        <span class="footer-contact__text">+01 1234567890</span>
+        <span class="footer-contact__text">+52 33 2536 2722</span>
       </a>
 
       <!-- Email -->
-      <a class="footer-contact__item" href="mailto:demo@gmail.com">
+      <a class="footer-contact__item" href="hunnab.q.ventas@gmail.com">
         <span class="footer-contact__icon" aria-hidden="true">
           <!-- Mail icon (SVG) -->
           <svg viewBox="0 0 24 24">
             <path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
           </svg>
         </span>
-        <span class="footer-contact__text">demo@gmail.com</span>
+        <span class="footer-contact__text">hunnab.q.ventas@gmail.com</span>
       </a>
 
     </div>
@@ -526,37 +585,43 @@
       "collares/gargantillas": {
         title: "Gargantillas",
         desc: "Collares cortos ideales para usar solos o en capas. Encuentra estilos minimal, perla y básicos.",
-        heroImg: "images/collares-1.jpg",
+        heroImg: "imagenes/1.jpeg",
+        heroImgHover: "imagenes/2.jpeg",
         products: ["gargantilla-luna", "gargantilla-perla", "gargantilla-minimal"]
+        
       },
       "collares/corbatines": {
         title: "Corbatines",
         desc: "Corbatines ajustables, perfectos para un look elegante y moderno.",
-        heroImg: "images/collares-2.jpg",
+        heroImg: "imagenes/1.jpeg",
+        heroImgHover: "imagenes/2.jpeg",
         products: ["corbatin-satin", "corbatin-oro"]
       },
       "aretes/arracadas": {
         title: "Arracadas",
         desc: "Arracadas clásicas, chunky y minimal para todos los días.",
-        heroImg: "images/aretes-2.jpg",
+        heroImg: "imagenes/1.jpeg",
+        heroImgHover: "imagenes/2.jpeg",
         products: ["arracadas-clasicas", "arracadas-chunky"]
       },
       "pulseras": {
         title: "Pulseras",
         desc: "Pulseras sencillas, bicolor y favoritas.",
-        heroImg: "images/pulseras-1.jpg",
+        heroImg: "imagenes/1.jpeg",
+        heroImgHover: "imagenes/2.jpeg",
         products: ["pulsera-nudo", "pulsera-bicolor"]
       },
       "last-chance": {
         title: "Last Chance",
         desc: "Últimas piezas disponibles con descuento.",
-        heroImg: "images/lastchance-1.jpg",
+        heroImg: "imagenes/1.jpeg",
+        heroImgHover: "imagenes/2.jpeg",
         products: ["aretes-amapola"]
       }
     };
 
     /***********************
-     * 2) DATA: productos (para la vista tipo tu screenshot)
+     * 2) DATA: productos)
      ***********************/
     const PRODUCTS = {
       "aretes-amapola": {
@@ -589,9 +654,9 @@
       },
 
       // Ejemplos para que el “Ver gargantillas” muestre un grid
-      "gargantilla-luna":  { title:"Gargantilla Luna",  price: 220.00, img:"images/garg-1.jpg" },
-      "gargantilla-perla": { title:"Gargantilla Perla", price: 250.00, img:"images/garg-2.jpg" },
-      "gargantilla-minimal":{ title:"Gargantilla Minimal",price: 190.00, img:"images/garg-3.jpg" },
+      "gargantilla-luna":  { title:"Gargantilla Luna",  price: 220.00, img:"imagenes/1.jpeg", imgHover:"imagenes/2.jpeg" },
+      "gargantilla-perla": { title:"Gargantilla Perla", price: 250.00, img:"imagenes/1.jpeg", imgHover:"imagenes/2.jpeg" },
+      "gargantilla-minimal":{ title:"Gargantilla Minimal",price: 190.00, img:"imagenes/1.jpeg", imgHover:"imagenes/2.jpeg" },
       "corbatin-satin":    { title:"Corbatín Satín",    price: 280.00, img:"images/corb-1.jpg" },
       "corbatin-oro":      { title:"Corbatín Oro",      price: 310.00, img:"images/corb-2.jpg" },
       "arracadas-clasicas":{ title:"Arracadas Clásicas",price: 260.00, img:"images/arra-1.jpg" },
@@ -670,7 +735,10 @@
             const c = CATEGORIES[key];
             return `
               <a class="card" href="#/${key}">
-                <img src="${c.heroImg}" alt="${c.title}">
+                <div class="img-swap">
+                 <img class="base" src="${c.heroImg}" alt="${c.title}">
+                   <img class="hover" src="${c.heroImgHover || c.heroImg}" alt="${c.title}">
+                    </div>
                 <div class="card__body">
                   <strong>${c.title}</strong>
                   <span>${c.desc}</span>
@@ -716,9 +784,13 @@
             const img = p.img || (p.images ? p.images[0] : "images/placeholder.jpg");
             const price = p.price ?? 0;
             return `
-              <a class="card" href="#/p/${pid}">
-                <img src="${img}" alt="${p.title}">
-                <div class="card__body">
+                <a class="card" href="#/p/${pid}">
+                <div class="img-swap">
+                <img class="base" src="${img}" alt="${p.title}">
+                <img class="hover" src="${p.imgHover || img}" alt="${p.title}">
+                </div>
+                
+                  <div class="card__body">
                   <strong>${p.title}</strong>
                   <span>${money(price)}</span>
                 </div>
@@ -916,6 +988,16 @@
     });
     window.addEventListener("hashchange", router);
     router();
+document.addEventListener("click", (e) => {
+  const card = e.target.closest(".card");
+  if(!card) return;
+
+  const hoverImg = card.querySelector(".img-swap img.hover");
+  const baseImg  = card.querySelector(".img-swap img.base");
+  if(!hoverImg || !baseImg) return;
+  card.classList.toggle("is-hover");
+});
+
   </script>
 </body>
 </html>
