@@ -8,9 +8,9 @@
   <style>
     :root{
       --bg:#fff;
-      --fg:#000000;
-      --muted:#6b7280;
-      --line:#e5e7eb;
+      --fg:#5d3f2d;
+      --muted:#555c68;
+      --line:#dfded6;
       --card:#f9fafb;
       --shadow: 0 14px 40px rgba(0,0,0,.10);
       --radius:16px;
@@ -533,11 +533,11 @@
           </div>
           <div class="m-images">
             <a class="img-card" href="#/collares/gargantillas">
-              <img src="imagenes/1.jpeg" alt="Gargantillas">
+              <img src="imagenes/Collar_Nautilus_Negro.jpeg" alt="Gargantillas">
               <div class="img-card__body"><strong>Gargantillas</strong><span>Explora</span></div>
             </a>
             <a class="img-card" href="#/collares/iconicos">
-              <img src="imagenes/1.jpeg" alt="Icónicos">
+              <img src="imagenes/Collar_Amatista.jpeg" alt="Icónicos">
               <div class="img-card__body"><strong>Icónicos</strong><span>Explora</span></div>
             </a>
           </div>
@@ -557,9 +557,10 @@
           </div>
         </div>
       </div>
-            
-      <div class="m-sec"><a class="m-btn" href="#/last-chance">LAST CHANCE <span>▾</span></a></div>
-    </div>
+
+      <div class="m-sec" data-open="false">
+        <button class="m-btn" type="button" data-toggle="mobile">ANILLOS<span>▾</span></button>
+      </div>
   </aside>
 
   <main>
@@ -570,16 +571,16 @@
 <section class="carousel" aria-label="Carrusel de imágenes">
   <div class="carousel__track" id="carouselTrack">
     <figure class="carousel__slide">
-      <img src="imagenes/1.jpeg" alt="Imagen 1">
+      <img src="imagenes/Collar_Nautilus.jpeg" alt="Imagen 1">
     </figure>
     <figure class="carousel__slide">
-      <img src="imagenes/2.jpeg" alt="Imagen 2">
+      <img src="imagenes/Pulsera_Volcanica.png" alt="Imagen 2">
     </figure>
     <figure class="carousel__slide">
-      <img src="imagenes/3.jpeg" alt="Imagen 3">
+      <img src="imagenes/Collar_Aquamarina.jpeg" alt="Imagen 3">
     </figure>
     <figure class="carousel__slide">
-      <img src="imagenes/4.jpeg" alt="Imagen 4">
+      <img src="imagenes/Anillo_Modelo.jpeg" alt="Imagen 4">
     </figure>
   </div>
 </section>
@@ -650,41 +651,35 @@
      ***********************/
     const CATEGORIES = {
       "collares/gargantillas": {
-        title: "Gargantillas",
+        title: "Collares",
         desc: "Collares cortos ideales para usar solos o en capas. Encuentra estilos minimal, perla y básicos.",
-        heroImg: "imagenes/1.jpeg",
-        heroImgHover: "imagenes/2.jpeg",
+        heroImg: "imagenes/Collar_Nautilus.jpeg",
+        heroImgHover: "imagenes/Collar_Nautilus_Negro.jpeg",
         products: ["gargantilla-luna", "gargantilla-perla", "gargantilla-minimal"]
         
       },
       "collares/corbatines": {
-        title: "Corbatines",
-        desc: "Corbatines ajustables, perfectos para un look elegante y moderno.",
-        heroImg: "imagenes/1.jpeg",
-        heroImgHover: "imagenes/2.jpeg",
+        title: "Aretes",
+        desc: "Aretes elegantes y versátiles para cualquier ocasión.",
+        heroImg: "imagenes/Anillo_Muestra.jpeg",
+        heroImgHover: "imagenes/Anillo_Modelo.jpeg",
         products: ["corbatin-satin", "corbatin-oro"]
       },
       "aretes/arracadas": {
-        title: "Arracadas",
-        desc: "Arracadas clásicas, chunky y minimal para todos los días.",
-        heroImg: "imagenes/1.jpeg",
-        heroImgHover: "imagenes/2.jpeg",
+        title: "Anillos",
+        desc: "Anillos clásicos y modernos para cualquier ocasión.",
+        heroImg: "imagenes/Anillo_Muestra.jpeg",
+        heroImgHover: "imagenes/Anillo_Modelo.jpeg",
         products: ["arracadas-clasicas", "arracadas-chunky"]
       },
       "pulseras": {
         title: "Pulseras",
         desc: "Pulseras sencillas, bicolor y favoritas.",
-        heroImg: "imagenes/1.jpeg",
-        heroImgHover: "imagenes/2.jpeg",
+        heroImg: "imagenes/Pulsera_Volcanica.png",
+        heroImgHover: "imagenes/Pulseras_Onyx.png",
         products: ["pulsera-nudo", "pulsera-bicolor"]
       },
-      "last-chance": {
-        title: "Last Chance",
-        desc: "Últimas piezas disponibles con descuento.",
-        heroImg: "imagenes/1.jpeg",
-        heroImgHover: "imagenes/2.jpeg",
-        products: ["aretes-amapola"]
-      }
+      
     };
 
     /***********************
@@ -721,11 +716,11 @@
       },
 
       // Ejemplos para que el “Ver gargantillas” muestre un grid
-      "gargantilla-luna":  { title:"Gargantilla Luna",  price: 220.00, img:"imagenes/1.jpeg", imgHover:"imagenes/2.jpeg" },
-      "gargantilla-perla": { title:"Gargantilla Perla", price: 250.00, img:"imagenes/1.jpeg", imgHover:"imagenes/2.jpeg" },
-      "gargantilla-minimal":{ title:"Gargantilla Minimal",price: 190.00, img:"imagenes/1.jpeg", imgHover:"imagenes/2.jpeg" },
-      "corbatin-satin":    { title:"Corbatín Satín",    price: 280.00, img:"images/corb-1.jpg" },
-      "corbatin-oro":      { title:"Corbatín Oro",      price: 310.00, img:"images/corb-2.jpg" },
+      "gargantilla-luna":  { title:"Collar Aquamarina",  price: 250.00, img:"imagenes/Collar_Aquamarina.jpeg", imgHover:"imagenes/Collar_Aquamarina_Negro.jpeg" },
+      "gargantilla-perla": { title:"Collar Nautilus", price: 250.00, img:"imagenes/Collar_Nautilus.jpeg", imgHover:"imagenes/Collar_Nautilus_Negro.jpeg" },
+      "gargantilla-minimal":{ title:"Collar Libelula",price: 170.00, img:"imagenes/Collar_Libelula.jpeg", imgHover:"imagenes/2.jpeg" },
+      "corbatin-satin":    { title:"Collar Amatista",    price: 280.00, img:"imagenes/Collar_Amatista.jpeg" },
+      "corbatin-oro":      { title:"Collar Oro",      price: 310.00, img:"imagenes/Collar_Arbolvida.jpeg" },
       "arracadas-clasicas":{ title:"Arracadas Clásicas",price: 260.00, img:"images/arra-1.jpg" },
       "arracadas-chunky":  { title:"Arracadas Chunky",  price: 320.00, img:"images/arra-2.jpg" },
       "pulsera-nudo":      { title:"Pulsera Nudo",      price: 180.00, img:"images/pul-1.jpg" },
