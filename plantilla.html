@@ -8,7 +8,7 @@
   <style>
     :root{
       --bg:#fff;
-      --fg:#111;
+      --fg:#541212;
       --muted:#6b7280;
       --line:#e5e7eb;
       --card:#f9fafb;
@@ -179,7 +179,7 @@
     .drawer__body{padding:10px;overflow:auto}
     .m-sec{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
     .m-btn{
-      width:100%;text-align:left;padding:12px;border:0;background:#fff;cursor:pointer;
+      width:100%;text-align:left;padding:12px;border:0;background:#d9d6c5;cursor:pointer;
       display:flex;justify-content:space-between;align-items:center;font-weight:700;
     }
     .m-btn:hover{background:var(--card)}
@@ -222,8 +222,12 @@
     .card{
       border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;
       transition:transform .12s ease;
-    }
+      }
     .card:hover{transform:translateY(-2px)}
+    .card:hover {
+    box-shadow: 0 6px 18px rgba(38, 47, 37, 0.30);
+    }
+
     .card img{height:170px;object-fit:cover}
     .card .img-swap{
       position: relative;
@@ -247,6 +251,7 @@
     @media (hover:hover) and (pointer:fine){
      .card:hover .img-swap img.base{ opacity: 0; }
     .card:hover .img-swap img.hover{ opacity: 1; }
+
     }
     .card.is-hover .img-swap img.base{ opacity: 0; }
     .card.is-hover .img-swap img.hover{ opacity: 1; }
@@ -468,17 +473,14 @@
       <button class="icon-btn" id="closeMenu" aria-label="Cerrar menú">✕</button>
     </div>
     <div class="drawer__body">
-      <div class="m-sec"><a class="m-btn" href="#/">INICIO <span>→</span></a></div>
+      <div class="m-sec"><a class="m-btn" href="#/">INICIO <span>▾</span></a></div>
 
       <div class="m-sec" data-open="false">
         <button class="m-btn" type="button" data-toggle="mobile">COLLARES <span>▾</span></button>
         <div class="m-panel">
           <div class="m-links">
-            <a href="#/collares/gargantillas">Ver Gargantillas</a>
-            <a href="#/collares/corbatines">Ver Corbatines</a>
-            <a href="#/collares/largos">Ver Largos</a>
-            <a href="#/collares/con-perla">Ver Con Perla</a>
-            <a href="#/collares/iconicos">Ver Icónicos</a>
+            <a href="#/collares/gargantillas">Para Caballero</a>
+            <a href="#/collares/corbatines">Para Dama</a>
           </div>
           <div class="m-images">
             <a class="img-card" href="#/collares/gargantillas">
@@ -495,18 +497,19 @@
 
       <div class="m-sec" data-open="false">
         <button class="m-btn" type="button" data-toggle="mobile">ARETES <span>▾</span></button>
+      </div>
+
+      <div class="m-sec" data-open="false">
+        <button class="m-btn" type="button" data-toggle="mobile">PULSERAS <span>▾</span></button>
         <div class="m-panel">
           <div class="m-links">
-            <a href="#/aretes/arracadas">Ver Arracadas</a>
-            <a href="#/aretes/earcuffs">Ver Earcuffs</a>
-            <a href="#/aretes/basicos">Ver Básicos</a>
-            <a href="#/p/aretes-amapola">Aretes Amapola (demo)</a>
+            <a href="#/collares/arracadas">Para Caballero</a>
+            <a href="#/collares/earcuffs">Para Dama</a>
           </div>
         </div>
       </div>
-
-      <div class="m-sec"><a class="m-btn" href="#/pulseras">PULSERAS <span>→</span></a></div>
-      <div class="m-sec"><a class="m-btn" href="#/last-chance">LAST CHANCE <span>→</span></a></div>
+            
+      <div class="m-sec"><a class="m-btn" href="#/last-chance">LAST CHANCE <span>▾</span></a></div>
     </div>
   </aside>
 
