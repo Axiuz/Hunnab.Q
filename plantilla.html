@@ -8,7 +8,7 @@
   <style>
     :root{
       --bg:#fff;
-      --fg:#541212;
+      --fg:#000000;
       --muted:#6b7280;
       --line:#e5e7eb;
       --card:#f9fafb;
@@ -67,6 +67,55 @@
       top:-14px;          
       height:14px;
     }
+     /* ===== Carrusel ===== */
+.carousel{
+  max-width: var(--max);
+  margin: 16px auto 24px;
+  padding: 0 16px;
+}
+
+    .carousel__track{
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding: 16px;
+      padding-bottom: 8px;
+      scroll-behavior: smooth;
+    }
+
+.carousel__track::-webkit-scrollbar{
+  height: 8px;
+}
+.carousel__track::-webkit-scrollbar-thumb{
+  background: #c7c7c7;
+  border-radius: 999px;
+}
+
+    .carousel__slide{
+      flex: 0 0 clamp(260px, 60vw, 360px);
+      scroll-snap-align: start;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+.carousel__slide img{
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 760px){
+  .carousel__track{
+    grid-auto-columns: 80%;
+  }
+  .carousel__slide img{
+    height: 200px;
+  }
+}
   /* ===== Footer: barra de contacto ===== */
   .footer-contact{
     background:#2b2b2b;
@@ -516,6 +565,24 @@
   <main>
     <div id="app"></div>
   </main>
+
+  <!-- ===== Carrusel ===== -->
+<section class="carousel" aria-label="Carrusel de imágenes">
+  <div class="carousel__track" id="carouselTrack">
+    <figure class="carousel__slide">
+      <img src="imagenes/1.jpeg" alt="Imagen 1">
+    </figure>
+    <figure class="carousel__slide">
+      <img src="imagenes/2.jpeg" alt="Imagen 2">
+    </figure>
+    <figure class="carousel__slide">
+      <img src="imagenes/3.jpeg" alt="Imagen 3">
+    </figure>
+    <figure class="carousel__slide">
+      <img src="imagenes/4.jpeg" alt="Imagen 4">
+    </figure>
+  </div>
+</section>
 
  <!-- ===== Footer (contacto + copyright) ===== -->
 <footer>
@@ -997,7 +1064,30 @@ document.addEventListener("click", (e) => {
   if(!hoverImg || !baseImg) return;
   card.classList.toggle("is-hover");
 });
+  // Autoplay carrusel
+  const track = document.getElementById("carouselTrack");
+  let index = 0;
 
-  </script>
+  function getSlideWidth(){
+    if(!track) return 0;
+    const slide = track.querySelector(".carousel__slide");
+    if(!slide) return 0;
+    const styles = getComputedStyle(track);
+    const gap = parseFloat(styles.gap || "0");
+    return slide.getBoundingClientRect().width + gap;
+  }
+
+  function autoplay(){
+    const slideWidth = getSlideWidth();
+    if(!slideWidth) return;
+
+    index = (index + 1) % track.children.length;
+    track.scrollTo({ left: slideWidth * index, behavior: "smooth" });
+  }
+
+  if(track){
+    setInterval(autoplay, 3000);
+  }
+</script>
 </body>
 </html>
