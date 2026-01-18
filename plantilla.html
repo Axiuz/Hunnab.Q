@@ -1330,46 +1330,6 @@ document.addEventListener("click", (e) => {
   if(track){
     setInterval(autoplay, 3000);
   }
-
-  // Carrusel
-  const valuesCarousel = document.getElementById("myCarousel");
-  if(valuesCarousel){
-    const items = Array.from(valuesCarousel.querySelectorAll(".carousel-item"));
-    const indicators = Array.from(valuesCarousel.querySelectorAll(".carousel-indicators li"));
-    const prevBtn = valuesCarousel.querySelector("[data-slide='prev']");
-    const nextBtn = valuesCarousel.querySelector("[data-slide='next']");
-    let current = items.findIndex((el)=>el.classList.contains("active"));
-    if(current < 0) current = 0;
-
-    function showSlide(nextIndex){
-      if(items.length === 0) return;
-      const total = items.length;
-      current = (nextIndex + total) % total;
-      items.forEach((el, i)=>el.classList.toggle("active", i === current));
-      indicators.forEach((el, i)=>el.classList.toggle("active", i === current));
-    }
-
-    indicators.forEach((el)=>{
-      el.addEventListener("click", (e)=>{
-        e.preventDefault();
-        const idx = Number(el.getAttribute("data-slide-to") || "0");
-        showSlide(idx);
-      });
-    });
-
-    prevBtn?.addEventListener("click", (e)=>{
-      e.preventDefault();
-      showSlide(current - 1);
-    });
-    nextBtn?.addEventListener("click", (e)=>{
-      e.preventDefault();
-      showSlide(current + 1);
-    });
-
-    if(valuesCarousel.getAttribute("data-ride") === "carousel"){
-      setInterval(()=>showSlide(current + 1), 4000);
-    }
-  }
 </script>
 </body>
 </html>
