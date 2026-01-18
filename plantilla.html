@@ -839,7 +839,34 @@
       },
 
       // Ejemplos para que el “Ver gargantillas” muestre un grid
-      "gargantilla-luna":  { title:"Collar Aquamarina",  price: 250.00, img:"imagenes/Collar_Aquamarina.jpeg", imgHover:"imagenes/Collar_Aquamarina_Negro.jpeg" },
+      "gargantilla-luna": {
+        kicker: "COLLARES",
+        title: "Collar Aquamarina",
+        price: 250.00,
+        inStock: true,
+        images: [
+          "imagenes/Collar_Aquamarina.jpeg",
+          "imagenes/Collar_Aquamarina_Negro.jpeg",
+          "imagenes/Collar_Nautilus.jpeg",
+          "imagenes/Collar_Libelula.jpeg"
+        ],
+        colors: [
+          { name:"Aquamarina", value:"#7fb4c9" },
+          { name:"Dorado", value:"#d4af37" }
+        ],
+        shortDesc: "Collar Aquamarina inspirado en tonos marinos y formas orgánicas.",
+        bullets: [
+          { icon:"🚚", text:"Envíos a todo México de 2–6 días hábiles con DHL" },
+          { icon:"🏬", text:"Pickup en tienda. Compra en línea y pásala a recoger" },
+          { icon:"✅", text:"Garantía del 100% dentro de los primeros 15 días" }
+        ],
+        tabs: [
+          { id:"descripcion", label:"Descripción", html:"<p>Collar con detalles artesanales y cuarzo aquamarina.</p>" },
+          { id:"cuidados", label:"Cuidados", html:"<ul><li>Evita perfumes y químicos.</li><li>Guarda separado.</li><li>Limpia con paño suave.</li></ul>" },
+          { id:"materiales", label:"Materiales", html:"<p>Acero inoxidable y piedra natural (edita según aplique).</p>" },
+          { id:"envios", label:"Envíos y devoluciones", html:"<p>Información de envío y devoluciones (edita a tu gusto).</p>" }
+        ]
+      },
       "gargantilla-perla": { title:"Collar Nautilus", price: 250.00, img:"imagenes/Collar_Nautilus.jpeg", imgHover:"imagenes/Collar_Nautilus_Negro.jpeg" },
       "gargantilla-minimal":{ title:"Collar Libelula",price: 170.00, img:"imagenes/Collar_Libelula.jpeg", imgHover:"imagenes/2.jpeg" },
       "corbatin-satin":    { title:"Collar Amatista",    price: 280.00, img:"imagenes/Collar_Amatista.jpeg" },
