@@ -192,8 +192,6 @@
 .simple-next{right:8px}
 .simple-carousel{padding:0 48px}
 /* ===== Carrusel valores ===== */
-.clients .carousel-item{display:none}
-.clients .carousel-item.active{display:block}
   /* ===== Footer: barra de contacto ===== */
   .footer-contact{
     background:#2b2b2b;
@@ -920,35 +918,6 @@ span:first-child{
      * 2) DATA: productos)
      ***********************/
     const PRODUCTS = {
-      "aretes-amapola": {
-        kicker: "ARETES & EARCUFFS",
-        title: "Aretes Amapola",
-        price: 270.00,
-        inStock: true,
-        images: [
-          "images/aretes-amapola-1.jpg",
-          "images/aretes-amapola-2.jpg",
-          "images/aretes-amapola-3.jpg",
-          "images/aretes-amapola-4.jpg"
-        ],
-        colors: [
-          { name:"Dorado", value:"#d4af37" },
-          { name:"Plateado", value:"#bfc7d5" }
-        ],
-        shortDesc: "Aretes amapola grande en forma de flor de cinco pétalos.",
-        bullets: [
-          { icon:"🚚", text:"Envíos a todo México de 2–6 días hábiles con DHL" },
-          { icon:"🏬", text:"Pickup en tienda. Compra en línea y pásala a recoger" },
-          { icon:"✅", text:"Garantía del 100% dentro de los primeros 15 días" }
-        ],
-        tabs: [
-          { id:"tallas", label:"Guía de tallas", html:"<p>Agrega aquí tu guía de tallas/medidas específicas.</p>" },
-          { id:"cuidados", label:"Cuidados", html:"<ul><li>lol perfumes y químicos.</li><li>Guarda separado.</li><li>Limpia con paño suave.</li></ul>" },
-          { id:"materiales", label:"Materiales", html:"<p>Acero inoxidable / baño (edita según aplique).</p>" },
-          { id:"envios", label:"Envíos y devoluciones", html:"<p>Políticas de envío y devoluciones (edita a tu gusto).</p>" }
-        ]
-      },
-
       // Ejemplos para que el “Ver gargantillas” muestre un grid
       "gargantilla-luna":  { title:"Collar Aquamarina",  price: 250.00, img:"imagenes/Collar_Aquamarina.jpeg", imgHover:"imagenes/Collar_Aquamarina_Negro.jpeg" },
       "gargantilla-perla": { title:"Collar Nautilus", price: 270.00, img:"imagenes/Collar_Nautilus.jpeg", imgHover:"imagenes/Collar_Nautilus_Negro.jpeg" },
@@ -964,7 +933,7 @@ span:first-child{
     };
 
     /***********************
-     * 3) Router (hash): #/collares/gargantillas, #/p/aretes-amapola, etc.
+     * 3) Router (hash): #/collares/gargantillas, #/p/gargantilla-luna, etc.
      ***********************/
     const app = document.getElementById("app");
 
@@ -978,6 +947,14 @@ span:first-child{
       { id:"materiales", label:"Materiales", html:()=>`<p>Materiales de la colección (edita aquí).</p>` },
       { id:"cuidados", label:"Cuidados", html:()=>`<ul><li>Evita perfumes/químicos.</li><li>Guarda por separado.</li><li>Limpia con paño suave.</li></ul>` },
       
+    ];
+
+    //colores de productos
+    const DEFAULT_PRODUCT_COLORS = [
+      { name:"Negro", value:"#111111" },
+      { name:"Dorado", value:"#d4af37" },
+      { name:"Plateado", value:"#bfc7d5" },
+      { name:"Rosa", value:"#e7a9b7" }
     ];
 
 // Render simple de tabs (reusable)
@@ -1089,7 +1066,7 @@ function wireAccordion(container){
     });
 }
 
-//Render apartado de compra 
+    // Render home
     function renderHome(){
       app.innerHTML = `
         <div class="hero">
@@ -1116,7 +1093,8 @@ function wireAccordion(container){
         </div>
       `;
     }
-
+    
+    //render de quienes somos
     function renderAbout(){
       app.innerHTML = `
         <div class="hero">
@@ -1254,7 +1232,32 @@ function wireAccordion(container){
 
     function renderProduct(pid){
       const p = PRODUCTS[pid];
-      if(!p || !p.images){ renderNotFound(); return; }
+      if(!p){ renderNotFound(); return; }
+      const images = (p.images && p.images.length ? p.images : [p.img, p.imgHover]).filter(Boolean);
+      if(images.length === 0){ renderNotFound(); return; }
+      const tabs = p.tabs || [];
+      const bullets = p.bullets || [];
+      const hasStock = typeof p.inStock === "boolean";
+      const priceText = p.price != null ? money(p.price) : "";
+      const kickerHTML = p.kicker ? `<div class="kicker">${p.kicker}</div>` : "";
+      const priceHTML = priceText ? `<div class="price">${priceText}</div>` : "";
+      const stockHTML = hasStock ? `
+            <div class="stock">
+              <span class="dot"></span>
+              <span>${p.inStock ? "El artículo está en stock" : "Agotado"}</span>
+            </div>` : "";
+      const descHTML = p.shortDesc ? `<div class="desc">${p.shortDesc}</div>` : "";
+      const bulletsHTML = bullets.length ? `
+            <div class="bullets">
+              ${bullets.map(b=>`
+                <div><strong>${b.icon}</strong><span>${b.text}</span></div>
+              `).join("")}
+            </div>` : "";
+      const tabsHTML = tabs.length ? `
+            <div class="tabs">
+              <div class="tabbar" id="tabbar"></div>
+              <div id="tabpanels"></div>
+            </div>` : "";
 
       app.innerHTML = `
         <div class="crumb">Inicio / ${p.kicker || "Producto"} / ${p.title}</div>
@@ -1262,7 +1265,7 @@ function wireAccordion(container){
         <div class="product">
           <!-- Gallery -->
           <div class="gallery">
-            ${p.images.slice(0,4).map((src, i)=>`
+            ${images.slice(0,4).map((src, i)=>`
               <div class="shot ${i < 2 ? "big" : ""}">
                 <img src="${src}" alt="${p.title} ${i+1}">
               </div>
@@ -1271,14 +1274,10 @@ function wireAccordion(container){
 
           <!-- Side info -->
           <aside class="side">
-            <div class="kicker">${p.kicker || ""}</div>
+            ${kickerHTML}
             <h2 style="margin:6px 0 6px;font-size:22px">${p.title}</h2>
-            <div class="price">${money(p.price)}</div>
-
-            <div class="stock">
-              <span class="dot"></span>
-              <span>${p.inStock ? "El artículo está en stock" : "Agotado"}</span>
-            </div>
+            ${priceHTML}
+            ${stockHTML}
 
             <div class="opt">
               <label>Color</label>
@@ -1298,27 +1297,19 @@ function wireAccordion(container){
             <button class="btn alt" type="button">Comprar con Pay</button>
             <button class="btn link" type="button">Más opciones de pago</button>
 
-            <div class="desc">${p.shortDesc || ""}</div>
-
-            <div class="bullets">
-              ${(p.bullets || []).map(b=>`
-                <div><strong>${b.icon}</strong><span>${b.text}</span></div>
-              `).join("")}
-            </div>
-
-            <div class="tabs">
-              <div class="tabbar" id="tabbar"></div>
-              <div id="tabpanels"></div>
-            </div>
+            ${descHTML}
+            ${bulletsHTML}
+            ${tabsHTML}
           </aside>
         </div>
       `;
 
       // swatches
       const sw = document.getElementById("swatches");
+      const colors = (p.colors && p.colors.length) ? p.colors : DEFAULT_PRODUCT_COLORS;
       let selectedColor = 0;
 
-      (p.colors || []).forEach((c, idx)=>{
+      colors.forEach((c, idx)=>{
         const el = document.createElement("button");
         el.className = "swatch";
         el.type = "button";
@@ -1347,35 +1338,37 @@ function wireAccordion(container){
       qtyEl.addEventListener("input", clampQty);
 
       // tabs
-      const tabbar = document.getElementById("tabbar");
-      const panels = document.getElementById("tabpanels");
+      if(tabs.length){
+        const tabbar = document.getElementById("tabbar");
+        const panels = document.getElementById("tabpanels");
 
-      (p.tabs || []).forEach((t, idx)=>{
-        const b = document.createElement("button");
-        b.className = "tabbtn";
-        b.type = "button";
-        b.textContent = t.label;
-        b.setAttribute("aria-selected", idx === 0 ? "true" : "false");
+        tabs.forEach((t, idx)=>{
+          const b = document.createElement("button");
+          b.className = "tabbtn";
+          b.type = "button";
+          b.textContent = t.label;
+          b.setAttribute("aria-selected", idx === 0 ? "true" : "false");
 
-        const panel = document.createElement("div");
-        panel.className = "tabpanel" + (idx === 0 ? " is-active" : "");
-        panel.innerHTML = t.html;
+          const panel = document.createElement("div");
+          panel.className = "tabpanel" + (idx === 0 ? " is-active" : "");
+          panel.innerHTML = t.html;
 
-        b.addEventListener("click", ()=>{
-          [...tabbar.children].forEach(x=>x.setAttribute("aria-selected","false"));
-          [...panels.children].forEach(x=>x.classList.remove("is-active"));
-          b.setAttribute("aria-selected","true");
-          panel.classList.add("is-active");
+          b.addEventListener("click", ()=>{
+            [...tabbar.children].forEach(x=>x.setAttribute("aria-selected","false"));
+            [...panels.children].forEach(x=>x.classList.remove("is-active"));
+            b.setAttribute("aria-selected","true");
+            panel.classList.add("is-active");
+          });
+
+          tabbar.appendChild(b);
+          panels.appendChild(panel);
         });
-
-        tabbar.appendChild(b);
-        panels.appendChild(panel);
-      });
+      }
 
       // add to cart demo
       document.getElementById("addCart").addEventListener("click", ()=>{
         clampQty();
-        alert(`Añadido: ${p.title}\nColor: ${(p.colors?.[selectedColor]?.name)||"—"}\nCantidad: ${qtyEl.value}`);
+        alert(`Añadido: ${p.title}\nColor: ${(colors[selectedColor]?.name)||"—"}\nCantidad: ${qtyEl.value}`);
       });
     }
 
