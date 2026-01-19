@@ -6,6 +6,7 @@
   <title>Plantilla SPA - Menú → Páginas</title>
 
   <style>
+    /* Variables y reset */
     :root{
       --bg:#fff;
       --fg:#5d3f2d;
@@ -23,7 +24,7 @@
     img{max-width:100%;display:block}
     button,select{font:inherit}
 
-    /* ===== Header ===== */
+    /* Header y buscador */
     .header{position:sticky;top:0;z-index:80;background:#fff;border-bottom:1px solid var(--line)}
     .header__inner{max-width:var(--max);margin:0 auto;padding:14px 16px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
     .logo{display:flex;gap:10px;align-items:center;justify-content:center;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
@@ -59,7 +60,7 @@
     .is-open .mega{display:none}
     .is-open .nav{display:none}
 
-    /* ===== Desktop nav ===== */
+    /* Nav desktop */
     .nav{border-top:1px solid var(--line);position:relative;z-index:81}
     .nav__inner{max-width:var(--max);margin:0 auto;padding:0 16px;display:flex;gap:14px;align-items:stretch}
     .nav-item{position:relative;display:flex;align-items:center}
@@ -70,7 +71,7 @@
     }
     .nav-link:hover{background:var(--card)}
 
-    /* ===== Mega dropdown ===== */
+    /* Mega menu */
     .mega{
       position:absolute;
       left:0;
@@ -86,7 +87,7 @@
       z-index:90;
     }
 
-    /* “Puente” invisible para que no se pierda el hover al bajar el mouse */
+    /* Puente para no perder hover */
     .mega::before{
       content:"";
       position:absolute;
@@ -94,7 +95,7 @@
       top:-14px;          
       height:14px;
     }
-     /* ===== Carrusel ===== */
+    /* Carrusel principal */
 .carousel{
   max-width: var(--max);
   margin: 16px auto 24px;
@@ -143,7 +144,7 @@
     height: 200px;
   }
 }
-/* ===== Carrusel simple ===== */
+/* Carrusel simple */
 .simple-carousel{
   position:relative;
   border:1px solid var(--line);
@@ -191,8 +192,8 @@
 .simple-prev{left:8px}
 .simple-next{right:8px}
 .simple-carousel{padding:0 48px}
-/* ===== Carrusel valores ===== */
-  /* ===== Footer: barra de contacto ===== */
+
+/* Footer y contacto */
   .footer-contact{
     background:#2b2b2b;
     color:#fff;
@@ -270,11 +271,13 @@
   .copyright a{ text-decoration:underline; }
 
 
+    /* Hover en desktop */
     @media (hover:hover) and (pointer:fine){
       .nav-item:hover .mega{display:block}
       .nav-item:has(.mega:hover) .mega{display:block}
     }
 
+    /* Contenido del mega menu */
     .mega__grid{display:grid;grid-template-columns: 1.2fr;gap:14px}
     .mega__col{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff}
     .mega__title{font-weight:800;margin:0 0 10px;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
@@ -283,6 +286,7 @@
     .mega__list a:hover{background:var(--card)}
     .tag{color:var(--muted);font-size:12px}
 
+    /* Cards del mega y menu movil */
     .img-card{
       border-radius:14px;overflow:hidden;border:1px solid var(--line);
       background:linear-gradient(180deg,#D9D6C5,var(--card));
@@ -292,7 +296,7 @@
     .img-card__body strong{display:block;font-size:13px}
     .img-card__body span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 
-    /* ===== Mobile drawer ===== */
+    /* Menu movil (drawer) */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:60}
     .drawer{
       position:fixed;top:0;left:0;height:100vh;width:min(92vw,380px);
@@ -324,7 +328,7 @@
       .logo{justify-content:flex-start}
     }
 
-    /* ===== App layout ===== */
+    /* Layout general */
     main{max-width:var(--max);margin:18px auto 70px;padding:0 16px}
     .crumb{color:var(--muted);font-size:12px;margin-bottom:10px}
     .hero{
@@ -335,7 +339,7 @@
     .hero h1{margin:0 0 6px;font-size:22px}
     .hero p{margin:0;color:var(--muted);line-height:1.6}
 
-    /* Category grid */
+    /* Grid de categorias */
     .grid{
       display:grid;
       grid-template-columns: repeat(4, 1fr);
@@ -344,6 +348,7 @@
     @media (max-width: 980px){ .grid{grid-template-columns:repeat(3,1fr)} }
     @media (max-width: 740px){ .grid{grid-template-columns:repeat(2,1fr)} }
 
+    /* Cards de producto */
     .card{
       border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;
       transition:transform .12s ease;
@@ -385,7 +390,7 @@
     .card__body strong{display:block;font-size:14px}
     .card__body span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 
-    /* Product page */
+    /* Pagina de producto */
     .product{
       display:grid;
       grid-template-columns: 1.2fr .8fr;
@@ -429,6 +434,7 @@
     .stock{display:flex;gap:8px;align-items:center;color:#065f46;font-size:13px;margin-bottom:10px}
     .dot{width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block}
 
+    /* Opciones de compra */
     .opt{margin:12px 0}
     .opt label{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
     .swatches{display:flex;gap:8px;align-items:center}
@@ -442,6 +448,7 @@
     .qty button:hover{background:var(--card)}
     .qty input{width:44px;text-align:center;border:0;outline:none}
 
+    /* Botones */
     .btn{
       width:100%;
       border:0;border-radius:12px;
@@ -459,7 +466,7 @@
     .bullets div{display:flex;gap:10px}
     .bullets span{color:var(--muted)}
 
-    /* Tabs */
+    /* Tabs de info */
     .tabs{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
     .tabbar{display:flex;gap:6px;flex-wrap:wrap}
     .tabbtn{
@@ -470,7 +477,7 @@
     .tabpanel{display:none;margin-top:10px;color:#111;line-height:1.6;font-size:13px}
     .tabpanel.is-active{display:block}
 
-    /* ===== Footer / Copyright ===== */
+    /* Footer y copyright */
     .copyright{
       border-top:1px solid var(--line);
       background:#D9D6C5;
@@ -509,7 +516,7 @@
 .card:hover .img-swap img.hover{ opacity: 1; }
 
 
-/* ===== Accordion (mobile joyería) ===== */
+/* Acordeon */
 .accordion{
   margin-top:14px;
   border-top:1px solid var(--line);
@@ -614,6 +621,7 @@ span:first-child{
 
 <body>
 
+  <!-- Header fijo -->
   <header class="header">
     <div class="header__inner">
       <div class="left">
@@ -634,7 +642,7 @@ span:first-child{
       </div>
     </div>
 
-    <!-- TODAS LAS CATEGOS -->
+    <!-- Navegacion principal -->
     <nav class="nav" aria-label="Navegación principal">
       <div class="nav__inner">
         <div class="nav-item"><a class="nav-link" href="#/">INICIO</a></div>
@@ -683,14 +691,14 @@ span:first-child{
       </div>
     </nav>
 
-  <!-- Search -->
+  <!-- Buscador -->
   <div class="search-overlay" id="searchOverlay" aria-hidden="true"></div>
   <div class="search-panel" id="searchPanel" role="dialog" aria-modal="true" aria-label="Buscar">
     <input id="searchInput" type="search" placeholder="Buscar en menús..." autocomplete="off">
     <div class="search-results" id="searchResults"></div>
   </div>
 
-  <!-- Mobile drawer -->
+  <!-- Menu movil -->
   <div class="backdrop" id="backdrop" aria-hidden="true"></div>
   <aside class="drawer" id="drawer" aria-label="Menú móvil">
     <div class="drawer__head">
@@ -720,8 +728,8 @@ span:first-child{
         </div>
       </div>
 
-      <div class="m-sec" data-open="false">
-        <button class="m-btn" type="button" data-toggle="mobile">ARETES <span>▾</span></button>
+      <div class="m-sec">
+        <a class="m-btn" href="#/aretes">ARETES</a>
       </div>
 
       <div class="m-sec" data-open="false">
@@ -744,18 +752,19 @@ span:first-child{
         </div>
       </div>
 
-      <div class="m-sec" data-open="false">
-        <button class="m-btn" type="button" data-toggle="mobile">ANILLOS<span>▾</span></button>
+      <div class="m-sec">
+        <a class="m-btn" href="#/anillos">ANILLOS</a>
       </div>
 
       <div class="m-sec"><a class="m-btn" href="#/quienes-somos">QUIENES SOMOS</a></div>
   </aside>
 
+  <!-- Contenido SPA -->
   <main>
     <div id="app"></div>
   </main>
 
-  <!-- ===== Carrusel ===== -->
+  <!-- Carrusel principal -->
 <section class="carousel" aria-label="Carrusel de imágenes">
   <div class="carousel__track" id="carouselTrack">
     <figure class="carousel__slide">
@@ -773,7 +782,7 @@ span:first-child{
   </div>
 </section>
 
- <!-- ===== Footer (contacto + copyright) ===== -->
+  <!-- Footer (contacto y copyright) -->
 <footer>
 
   <!-- Barra negra con íconos -->
@@ -819,7 +828,7 @@ span:first-child{
     </div>
   </section>
 
-  <!-- Copyright (tu snippet, pero ya cerrado y limpio) -->
+  <!-- Copyright -->
   <div class="copyright">
     <div class="container">
       <div class="row">
@@ -834,10 +843,11 @@ span:first-child{
 
 </footer>
 
+  <!-- Logica JS -->
   <script>
-    /***********************
-     * 1) DATA: “páginas” del menú
-     ***********************/
+
+    // Datos de paginas del menu
+     
     const CATEGORIES = {
       "collares": {
         title: "Collares",
@@ -914,9 +924,8 @@ span:first-child{
       
     };
 
-    /***********************
-     * 2) DATA: productos)
-     ***********************/
+    // Datos de productos
+  
     const PRODUCTS = {
       // Ejemplos para que el “Ver gargantillas” muestre un grid
       "gargantilla-luna":  { title:"Collar Aquamarina",  price: 250.00, img:"imagenes/Collar_Aquamarina.jpeg", imgHover:"imagenes/Collar_Aquamarina_Negro.jpeg" },
@@ -932,11 +941,10 @@ span:first-child{
       "pulsera-bicolor":   { title:"Pulsera Onyx",   price: 210.00, img:"imagenes/Pulseras_Onyx.png" }
     };
 
-    /***********************
-     * 3) Router (hash): #/collares/gargantillas, #/p/gargantilla-luna, etc.
-     ***********************/
+    // App y router
     const app = document.getElementById("app");
 
+    // Formatea precio en MXN
     function money(n){
       return n.toLocaleString("es-MX",{ style:"currency", currency:"MXN" });
     }
@@ -949,7 +957,7 @@ span:first-child{
       
     ];
 
-    //colores de productos
+    // Colores por defecto
     const DEFAULT_PRODUCT_COLORS = [
       { name:"Negro", value:"#111111" },
       { name:"Dorado", value:"#d4af37" },
@@ -957,7 +965,7 @@ span:first-child{
       { name:"Rosa", value:"#e7a9b7" }
     ];
 
-// Render simple de tabs (reusable)
+// Renderiza tabs (HTML)
 function renderTabsHTML(items, getHtmlFn){
   if(!items || items.length === 0) return "";
   return `
@@ -983,6 +991,7 @@ function renderTabsHTML(items, getHtmlFn){
   `;
 }
 
+// Activa los tabs al hacer click
 function wireTabs(container){
   container.querySelectorAll(".tabs").forEach((root)=>{
     const tabbar = root.querySelector(".tabbar");
@@ -1005,7 +1014,7 @@ function wireTabs(container){
   });
 }
 
-// Render simple de acordeon (reusable)
+// Renderiza acordeon (HTML)
 function renderAccordionHTML(items, getHtmlFn){
   return `
     <div class="accordion">
@@ -1032,7 +1041,7 @@ function renderAccordionHTML(items, getHtmlFn){
   `;
 }
 
-    // Activar acordeon dentro de un contenedor
+    // Activa el acordeon dentro del contenedor
 function wireAccordion(container){
   const accordion = container.querySelector(".accordion");
   if(!accordion) return;
@@ -1066,7 +1075,7 @@ function wireAccordion(container){
     });
 }
 
-    // Render home
+    // Renderiza la pagina de inicio
     function renderHome(){
       app.innerHTML = `
         <div class="hero">
@@ -1095,6 +1104,7 @@ function wireAccordion(container){
     }
     
     //render de quienes somos
+    // Renderiza la pagina de "Quienes Somos"
     function renderAbout(){
       app.innerHTML = `
         <div class="hero">
@@ -1141,6 +1151,7 @@ function wireAccordion(container){
       wireSimpleCarousel(app.querySelector("[data-simple-carousel]"));
     }
 
+    // Activa controles del carrusel simple
     function wireSimpleCarousel(root){
       if(!root) return;
       const track = root.querySelector(".simple-track");
@@ -1149,6 +1160,7 @@ function wireAccordion(container){
       const slides = track ? Array.from(track.children) : [];
       let index = 0;
 
+      // Calcula el ancho de cada slide
       function getSlideWidth(){
         if(!track || slides.length === 0) return 0;
         const styles = getComputedStyle(track);
@@ -1156,6 +1168,7 @@ function wireAccordion(container){
         return slides[0].getBoundingClientRect().width + gap;
       }
 
+      // Mueve el carrusel al indice indicado
       function go(nextIndex){
         const w = getSlideWidth();
         if(!w) return;
@@ -1167,6 +1180,7 @@ function wireAccordion(container){
       nextBtn?.addEventListener("click", ()=> go(index + 1));
     }
 
+    // Renderiza una categoria y su grid
     function renderCategory(key){
       const c = CATEGORIES[key];
       if(!c){ renderNotFound(); return; }
@@ -1230,6 +1244,7 @@ function wireAccordion(container){
 
     }
 
+    // Renderiza la vista de producto
     function renderProduct(pid){
       const p = PRODUCTS[pid];
       if(!p){ renderNotFound(); return; }
@@ -1365,13 +1380,14 @@ function wireAccordion(container){
         });
       }
 
-      // add to cart demo
+      // Demo de carrito
       document.getElementById("addCart").addEventListener("click", ()=>{
         clampQty();
         alert(`Añadido: ${p.title}\nColor: ${(colors[selectedColor]?.name)||"—"}\nCantidad: ${qtyEl.value}`);
       });
     }
 
+    // Renderiza la vista de no encontrado
     function renderNotFound(){
       app.innerHTML = `
         <div class="hero">
@@ -1381,6 +1397,7 @@ function wireAccordion(container){
       `;
     }
 
+    // Enruta segun el hash actual
     function router(){
       const hash = (location.hash || "#/").replace("#/","");
       if(hash === "" || hash === "/"){ renderHome(); return; }
@@ -1397,9 +1414,7 @@ function wireAccordion(container){
       renderCategory(hash);
     }
 
-    /***********************
-     * 4) Drawer + mobile accordion + close on nav click
-     ***********************/
+    // Menu movil y buscador
     const body = document.body;
     const openMenu = document.getElementById("openMenu");
     const closeMenu = document.getElementById("closeMenu");
@@ -1411,10 +1426,12 @@ function wireAccordion(container){
     const searchInput = document.getElementById("searchInput");
     const searchResults = document.getElementById("searchResults");
 
+    // Abre o cierra el menu movil
     function setDrawer(open){
       body.classList.toggle("is-open", open);
       backdrop.setAttribute("aria-hidden", String(!open));
     }
+    // Abre o cierra el buscador
     function setSearch(open){
       body.classList.toggle("is-search-open", open);
       searchOverlay.setAttribute("aria-hidden", String(!open));
@@ -1433,6 +1450,7 @@ function wireAccordion(container){
         route: `#/${key}`
       }))
     ];
+    // Muestra resultados del buscador
     function renderSearchResults(query){
       const q = query.trim().toLowerCase();
       const results = q
@@ -1493,6 +1511,7 @@ document.addEventListener("click", (e) => {
   const track = document.getElementById("carouselTrack");
   let index = 0;
 
+  // Calcula el ancho del slide del carrusel principal
   function getSlideWidth(){
     if(!track) return 0;
     const slide = track.querySelector(".carousel__slide");
@@ -1502,6 +1521,7 @@ document.addEventListener("click", (e) => {
     return slide.getBoundingClientRect().width + gap;
   }
 
+  // Avanza el carrusel principal automaticamente
   function autoplay(){
     const slideWidth = getSlideWidth();
     if(!slideWidth) return;
