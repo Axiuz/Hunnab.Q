@@ -555,6 +555,8 @@ function wireAccordion(container){
       if(hash === "" || hash === "/"){ renderHome(); return; }
       if(hash === "quienes-somos"){ renderAbout(); return; }
 
+      if(hash === "cuenta"){ renderCuenta(); return; }
+
       // product route: p/<id>
       if(hash.startsWith("p/")){
         const pid = hash.slice(2);
@@ -685,3 +687,6 @@ document.addEventListener("click", (e) => {
   if(track){
     setInterval(autoplay, 3000);
   }
+
+
+

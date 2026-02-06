@@ -5,12 +5,615 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Plantilla SPA - Menú → Páginas</title>
 
-  <link rel="stylesheet" href="plantilla.css">
+  <style>
+    :root{
+      --bg:#fff;
+      --fg:#5d3f2d;
+      --muted:#555c68;
+      --line:#dfded6;
+      --card:#f9fafb;
+      --shadow: 0 14px 40px rgba(0,0,0,.10);
+      --radius:16px;
+      --max:1100px;
+      --black:#0b0b0b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg)}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    button,select{font:inherit}
+
+    /* ===== Header ===== */
+    .header{position:sticky;top:0;z-index:80;background:#fff;border-bottom:1px solid var(--line)}
+    .header__inner{max-width:var(--max);margin:0 auto;padding:14px 16px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+    .logo{display:flex;gap:10px;align-items:center;justify-content:center;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    .logo__mark{width:34px;height:34px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;overflow:hidden}
+    .logo__mark img{width:100%;height:100%;object-fit:contain}
+    .left,.right{display:flex;gap:10px;align-items:center}
+    .right{justify-content:flex-end}
+    .icon-btn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;cursor:pointer}
+    .icon-btn:hover{background:var(--card)}
+    .search-overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.35);
+      display:none;z-index:120;
+    }
+    .search-panel{
+      position:fixed;left:50%;top:90px;transform:translateX(-50%);
+      width:min(700px, 92vw);background:#fff;border:1px solid var(--line);
+      border-radius:18px;box-shadow:var(--shadow);padding:14px;display:none;z-index:121;
+    }
+    .search-panel input{
+      width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+      font-size:14px;
+    }
+    .search-results{margin-top:12px;display:grid;gap:8px;max-height:280px;overflow:auto}
+    .search-results a{
+      border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+      display:flex;justify-content:space-between;gap:10px;
+    }
+    .search-results a:hover{background:var(--card)}
+    .search-empty{color:var(--muted);font-size:13px}
+    .is-search-open .search-overlay,
+    .is-search-open .search-panel{display:block}
+    .is-search-open .nav{pointer-events:none}
+    .is-open .mega{display:none}
+    .is-open .nav{display:none}
+
+    /* ===== Desktop nav ===== */
+    .nav{border-top:1px solid var(--line);position:relative;z-index:81}
+    .nav__inner{max-width:var(--max);margin:0 auto;padding:0 16px;display:flex;gap:14px;align-items:stretch}
+    .nav-item{position:relative;display:flex;align-items:center}
+    .nav-link{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:12px 10px;border-radius:12px;
+      text-transform:uppercase;letter-spacing:.06em;font-size:13px;
+    }
+    .nav-link:hover{background:var(--card)}
+
+    /* ===== Mega dropdown ===== */
+    .mega{
+      position:absolute;
+      left:0;
+      top:calc(100% - 2px); /* pega el dropdown al header */
+      width:min(350px, 92vw);
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      padding:14px;
+      display:none;
+      margin-top:0; 
+      z-index:90;
+    }
+
+    /* “Puente” invisible para que no se pierda el hover al bajar el mouse */
+    .mega::before{
+      content:"";
+      position:absolute;
+      left:0; right:0;
+      top:-14px;          
+      height:14px;
+    }
+     /* ===== Carrusel ===== */
+.carousel{
+  max-width: var(--max);
+  margin: 16px auto 24px;
+  padding: 0 16px;
+}
+
+    .carousel__track{
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding: 16px;
+      padding-bottom: 8px;
+      scroll-behavior: smooth;
+    }
+
+.carousel__track::-webkit-scrollbar{
+  height: 8px;
+}
+.carousel__track::-webkit-scrollbar-thumb{
+  background: #c7c7c7;
+  border-radius: 999px;
+}
+
+    .carousel__slide{
+      flex: 0 0 clamp(260px, 60vw, 360px);
+      scroll-snap-align: start;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .carousel__slide img{
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      display: block;
+    }
+
+@media (max-width: 760px){
+  .carousel__track{
+    grid-auto-columns: 80%;
+  }
+  .carousel__slide img{
+    height: 200px;
+  }
+}
+/* ===== Carrusel simple ===== */
+.simple-carousel{
+  position:relative;
+  border:1px solid var(--line);
+  border-radius:16px;
+  overflow:hidden;
+  background:#fff;
+}
+.simple-track{
+  display:flex;
+  gap:12px;
+  overflow:hidden;
+  scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;
+}
+.simple-slide{
+  flex:0 0 100%;
+  scroll-snap-align:start;
+  padding:18px;
+  display:grid;
+  gap:12px;
+  align-items:center;
+}
+.simple-slide img{
+  width:100%;
+  height:220px;
+  object-fit:cover;
+  border-radius:12px;
+  border:1px solid var(--line);
+}
+.simple-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:999px;
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  z-index:2;
+}
+.simple-nav:hover{background:var(--card)}
+.simple-prev{left:8px}
+.simple-next{right:8px}
+.simple-carousel{padding:0 48px}
+/* ===== Carrusel valores ===== */
+  /* ===== Footer: barra de contacto ===== */
+  .footer-contact{
+    background:#2b2b2b;
+    color:#fff;
+    padding:64px 16px;
+  }
+
+  .footer-contact__inner{
+    max-width:var(--max);
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:24px;
+    text-align:center;
+    align-items:center;
+  }
+
+  .footer-contact__item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+    color:#fff;
+    text-decoration:none;
+    padding:10px 8px;
+    border-radius:14px;
+  }
+
+  .footer-contact__item:hover{
+    background:rgba(255,255,255,.06);
+  }
+
+  .footer-contact__icon{
+    width:56px;
+    height:56px;
+    display:grid;
+    place-items:center;
+  }
+
+  .footer-contact__icon svg{
+    width:45px;
+    height:45px;
+    fill:#fff;
+  }
+
+  .footer-contact__text{
+    font-size:15px;
+    letter-spacing:.01em;
+  }
+
+  /* Responsive */
+  @media (max-width: 760px){
+    .footer-contact__inner{
+      grid-template-columns:1fr;
+      gap:18px;
+    }
+  }
+
+
+  .copyright{
+    border-top:1px solid var(--line);
+    background:#D9D6C5;
+  }
+  .copyright .container{
+    max-width:var(--max);
+    margin:0 auto;
+    padding:18px 16px;
+  }
+  .copyright p{
+    margin:0;
+    color:var(--line);;
+    font-size:17px;
+    text-align:center;
+    line-height:1.6;
+  }
+  .copyright a{ text-decoration:underline; }
+
+
+    @media (hover:hover) and (pointer:fine){
+      .nav-item:hover .mega{display:block}
+      .nav-item:has(.mega:hover) .mega{display:block}
+    }
+
+    .mega__grid{display:grid;grid-template-columns: 1.2fr;gap:14px}
+    .mega__col{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff}
+    .mega__title{font-weight:800;margin:0 0 10px;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+    .mega__list{display:grid;gap:6px}
+    .mega__list a{padding:10px 10px;border-radius:12px;display:flex;justify-content:space-between;gap:10px}
+    .mega__list a:hover{background:var(--card)}
+    .tag{color:var(--muted);font-size:12px}
+
+    .img-card{
+      border-radius:14px;overflow:hidden;border:1px solid var(--line);
+      background:linear-gradient(180deg,#D9D6C5,var(--card));
+    }
+    .img-card img{width:100%;height:150px;object-fit:cover}
+    .img-card__body{padding:10px}
+    .img-card__body strong{display:block;font-size:13px}
+    .img-card__body span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+
+    /* ===== Mobile drawer ===== */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:60}
+    .drawer{
+      position:fixed;top:0;left:0;height:100vh;width:min(92vw,380px);
+      background:#fff;border-right:1px solid var(--line);box-shadow:var(--shadow);
+      transform:translateX(-105%);transition:transform .22s ease;z-index:61;
+      display:flex;flex-direction:column;
+    }
+    .drawer__head{padding:14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .drawer__body{padding:10px;overflow:auto}
+    .m-sec{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:10px}
+    .m-btn{
+      width:100%;text-align:left;padding:12px;border:0;background:#d9d6c5;cursor:pointer;
+      display:flex;justify-content:space-between;align-items:center;font-weight:700;color: var(--fg);
+    }
+    .m-btn:hover{background:var(--card)}
+    .m-panel{display:none;padding:10px 12px 14px;background:#fff;border-top:1px solid var(--line)}
+    .m-sec[data-open="true"] .m-panel{display:block}
+    .m-links{display:grid;gap:6px}
+    .m-links a{padding:10px;border-radius:12px}
+    .m-links a:hover{background:var(--card)}
+    .m-images{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .m-images .img-card img{height:110px}
+    .is-open .backdrop{display:block}
+    .is-open .drawer{transform:translateX(0)}
+
+    @media (max-width: 860px){
+      .nav{display:none}
+      .header__inner{grid-template-columns:auto 1fr auto}
+      .logo{justify-content:flex-start}
+    }
+
+    /* ===== App layout ===== */
+    main{max-width:var(--max);margin:18px auto 70px;padding:0 16px}
+    .crumb{color:var(--muted);font-size:12px;margin-bottom:10px}
+    .hero{
+      border:1px solid var(--line);border-radius:var(--radius);
+      background:linear-gradient(180deg,#fff,var(--card));
+      padding:18px;margin-bottom:16px;
+    }
+    .hero h1{margin:0 0 6px;font-size:22px}
+    .hero p{margin:0;color:var(--muted);line-height:1.6}
+
+    /* Category grid */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:12px;
+    }
+    @media (max-width: 980px){ .grid{grid-template-columns:repeat(3,1fr)} }
+    @media (max-width: 740px){ .grid{grid-template-columns:repeat(2,1fr)} }
+
+    .card{
+      border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;
+      transition:transform .12s ease;
+      }
+    .card:hover{transform:translateY(-2px)}
+    .card:hover {
+    box-shadow: 0 6px 18px rgba(38, 47, 37, 0.30);
+    }
+
+    .card img{height:170px;object-fit:cover}
+    .card .img-swap{
+      position: relative;
+      width: 100%;
+      height: 170px;         
+      overflow: hidden;
+      }
+
+    .card .img-swap img{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity .4s ease;
+      }
+    .card .img-swap img.hover{
+      opacity: 0;
+    }
+
+    @media (hover:hover) and (pointer:fine){
+     .card:hover .img-swap img.base{ opacity: 0; }
+    .card:hover .img-swap img.hover{ opacity: 1; }
+
+    }
+    .card.is-hover .img-swap img.base{ opacity: 0; }
+    .card.is-hover .img-swap img.hover{ opacity: 1; }
+
+    .card__body{padding:10px}
+    .card__body strong{display:block;font-size:14px}
+    .card__body span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+
+    /* Product page */
+    .product{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:18px;
+      align-items:start;
+    }
+    @media (max-width: 900px){
+      .product{grid-template-columns:1fr}
+    }
+
+    .gallery{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    .shot{
+      border:1px solid var(--line);
+      border-radius:16px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .shot img{width:100%;height:260px;object-fit:cover}
+    .shot.big img{height:290px}
+    @media (max-width: 900px){
+      .shot img, .shot.big img{height:220px}
+    }
+
+    .side{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:#fff;
+      position:sticky;
+      top:90px;
+    }
+    @media (max-width: 900px){
+      .side{position:relative;top:auto}
+    }
+    .kicker{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+    .price{font-weight:800;margin:10px 0}
+    .stock{display:flex;gap:8px;align-items:center;color:#065f46;font-size:13px;margin-bottom:10px}
+    .dot{width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block}
+
+    .opt{margin:12px 0}
+    .opt label{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+    .swatches{display:flex;gap:8px;align-items:center}
+    .swatch{
+      width:22px;height:14px;border-radius:6px;border:1px solid var(--line);
+      cursor:pointer;display:inline-block;position:relative;
+    }
+    .swatch[aria-checked="true"]{outline:2px solid #111;outline-offset:2px}
+    .qty{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .qty button{border:0;background:#fff;padding:8px 10px;cursor:pointer}
+    .qty button:hover{background:var(--card)}
+    .qty input{width:44px;text-align:center;border:0;outline:none}
+
+    .btn{
+      width:100%;
+      border:0;border-radius:12px;
+      padding:12px 12px;
+      cursor:pointer;
+      font-weight:800;
+    }
+    .btn.primary{background:var(--black);color:#fff}
+    .btn.primary:hover{opacity:.92}
+    .btn.alt{margin-top:8px;background:#111;color:#fff;display:flex;justify-content:center;gap:8px;align-items:center}
+    .btn.link{margin-top:6px;background:transparent;color:var(--muted);text-decoration:underline;font-weight:600}
+
+    .desc{margin-top:12px;color:#111;line-height:1.6;font-size:13px}
+    .bullets{margin-top:12px;display:grid;gap:10px;color:#111;font-size:13px}
+    .bullets div{display:flex;gap:10px}
+    .bullets span{color:var(--muted)}
+
+    /* Tabs */
+    .tabs{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+    .tabbar{display:flex;gap:6px;flex-wrap:wrap}
+    .tabbtn{
+      border:1px solid var(--line);background:#fff;border-radius:999px;
+      padding:8px 10px;cursor:pointer;font-size:13px;
+    }
+    .tabbtn[aria-selected="true"]{background:#111;color:#fff;border-color:#111}
+    .tabpanel{display:none;margin-top:10px;color:#111;line-height:1.6;font-size:13px}
+    .tabpanel.is-active{display:block}
+
+    /* ===== Footer / Copyright ===== */
+    .copyright{
+      border-top:1px solid var(--line);
+      background:#D9D6C5;
+      margin-top:0px;
+    }
+    .copyright .container{
+      max-width:var(--max);
+      margin:0 auto;
+      padding:18px 16px;
+    }
+    .copyright p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+      line-height:1.6;
+    }
+    .copyright a{ text-decoration:underline; }
+    .card .img-swap{
+    position: relative;
+     width: 100%;
+     height: 170px;
+    overflow: hidden;
+}
+.card .img-swap img{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity .35s ease;
+}
+.card .img-swap img.hover{ opacity: 0; }
+
+.card:hover .img-swap img.base{ opacity: 0; }
+.card:hover .img-swap img.hover{ opacity: 1; }
+
+
+/* ===== Accordion (mobile joyería) ===== */
+.accordion{
+  margin-top:14px;
+  border-top:1px solid var(--line);
+}
+
+.accordion-item{
+  border-bottom:1px solid var(--line);
+}
+
+.accordion-header{
+  width:100%;
+  background:none;
+  border:0;
+  padding:14px 6px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:700;
+  font-size:14px;
+  letter-spacing:.04em;
+  cursor:pointer;
+  color:var(--fg);
+}
+
+.accordion-icon{
+  width:20px;
+  height:20px;
+  position:relative;
+  transition:transform .25s ease;
+}
+
+.accordion-icon::before,
+.accordion-icon::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  background:var(--fg);
+  border-radius:2px;
+}
+
+.accordion-icon::before{
+  width:14px;
+  height:2px;
+}
+
+.accordion-icon::after{
+  width:2px;
+  height:14px;
+  
+}
+
+.accordion-header[aria-expanded="true"] .accordion-icon{
+  transform:rotate(180deg);
+}
+
+.accordion-header[aria-expanded="true"] .accordion-icon::after{
+  opacity:0; /* convierte + en − */
+}
+
+/* Panel animado */
+.accordion-panel{
+  overflow:hidden;
+  max-height:0;
+  transition:max-height .35s ease;
+}
+
+.accordion-panel-inner{
+  padding:0 6px 14px;
+  font-size:13px;
+  line-height:1.6;
+  color:#111;
+}
+
+.accordion-header[aria-expanded="true"]{
+  color:#4f664a;
+}
+
+.accordion-header[aria-expanded="true"] .accordion-icon::before,
+.accordion-header[aria-expanded="true"] .accordion-icon::after{
+  background:#4f664a;
+}
+
+.accordion-header span:first-child{
+  display:inline-block;
+  transition:transform .25s ease;
+}
+
+.accordion-header:hover span:first-child{
+  transform:scale(1.15);
+}
+
+.accordion-header[aria-expanded="true"]
+span:first-child{
+  transform:scale(1.15);
+}
+
+
+
+  </style>
 </head>
 
 <body>
 
-  <!-- Header fijo -->
   <header class="header">
     <div class="header__inner">
       <div class="left">
@@ -31,10 +634,12 @@
       </div>
     </div>
 
-    <!-- Navegacion principal -->
+    <!-- TODAS LAS CATEGORÍAS -->
     <nav class="nav" aria-label="Navegación principal">
       <div class="nav__inner">
         <div class="nav-item"><a class="nav-link" href="#/">INICIO</a></div>
+
+
 
         <!-- COLLARES -->
         <div class="nav-item">
@@ -80,14 +685,14 @@
       </div>
     </nav>
 
-  <!-- Buscador -->
+  <!-- Search -->
   <div class="search-overlay" id="searchOverlay" aria-hidden="true"></div>
   <div class="search-panel" id="searchPanel" role="dialog" aria-modal="true" aria-label="Buscar">
     <input id="searchInput" type="search" placeholder="Buscar en menús..." autocomplete="off">
     <div class="search-results" id="searchResults"></div>
   </div>
 
-  <!-- Menu movil -->
+  <!-- Mobile drawer -->
   <div class="backdrop" id="backdrop" aria-hidden="true"></div>
   <aside class="drawer" id="drawer" aria-label="Menú móvil">
     <div class="drawer__head">
@@ -117,8 +722,8 @@
         </div>
       </div>
 
-      <div class="m-sec">
-        <a class="m-btn" href="#/aretes">ARETES</a>
+      <div class="m-sec" data-open="false">
+        <button class="m-btn" type="button" data-toggle="mobile">ARETES <span>▾</span></button>
       </div>
 
       <div class="m-sec" data-open="false">
@@ -141,19 +746,18 @@
         </div>
       </div>
 
-      <div class="m-sec">
-        <a class="m-btn" href="#/anillos">ANILLOS</a>
+      <div class="m-sec" data-open="false">
+        <button class="m-btn" type="button" data-toggle="mobile">ANILLOS<span>▾</span></button>
       </div>
 
-      <div class="m-sec"><a class="m-btn" href="#/quienes-somos">QUIENES SOMOS</a></div>
+      <div class="m-sec"><a class="m-btn" href="#/quienes-somos">¿QUIENES SOMOS?</a></div>
   </aside>
 
-  <!-- Contenido SPA -->
   <main>
     <div id="app"></div>
   </main>
 
-  <!-- Carrusel principal -->
+  <!-- ===== Carrusel ===== -->
 <section class="carousel" aria-label="Carrusel de imágenes">
   <div class="carousel__track" id="carouselTrack">
     <figure class="carousel__slide">
@@ -171,7 +775,7 @@
   </div>
 </section>
 
-  <!-- Footer (contacto y copyright) -->
+ <!-- ===== Footer (contacto + copyright) ===== -->
 <footer>
 
   <!-- Barra negra con íconos -->
@@ -217,7 +821,7 @@
     </div>
   </section>
 
-  <!-- Copyright -->
+  <!-- Copyright (tu snippet, pero ya cerrado y limpio) -->
   <div class="copyright">
     <div class="container">
       <div class="row">
@@ -232,8 +836,754 @@
 
 </footer>
 
-  <!-- Logica JS -->
-  <script src="plantilla.js"></script>
+  <script>
+    /***********************
+     * 1) DATA: “páginas” del menú
+     ***********************/
+    const CATEGORIES = {
+      "collares": {
+        title: "Collares",
+        desc: "Diseños artesanales creados con dedicación, pensados para expresar tu esencia y dar un toque único a cada look.",
+        heroImg: "imagenes/Collar_Nautilus.jpeg",
+        heroImgHover: "imagenes/Collar_Nautilus_Negro.jpeg",
+        products: ["gargantilla-luna", "gargantilla-perla", "gargantilla-minimal"],
+        tabs: [
+          { id:"caballero", label:"Para Caballero", html:()=>"<p>Accesorios con carácter y diseño moderno, ideales para un estilo auténtico y sofisticado.</p>" },
+          { id:"dama", label:"Para Dama", html:()=>"<p>Diseños delicados que realzan tu estilo y aportan un toque de elegancia a cada ocasión.</p>"}
+        ]
+      },
+      "aretes": {
+        title: "Aretes",
+        desc: "Aretes elegantes y versátiles para cualquier ocasión.",
+        heroImg: "imagenes/Anillo_Muestra.jpeg",
+        heroImgHover: "imagenes/Anillo_Modelo.jpeg",
+        products: ["arracadas-clasicas", "arracadas-chunky"]
+      },
+      "collares/caballero": {
+        title: "Collares Caballero",
+        desc: "Collares cortos ideales para lucir solos o combinar en capas, aportando estilo y versatilidad a cualquier look.",
+        heroImg: "imagenes/Collar_Nautilus.jpeg",
+        heroImgHover: "imagenes/Collar_Nautilus_Negro.jpeg",
+        products: ["gargantilla-luna", "gargantilla-perla", "gargantilla-minimal"]
+        
+      },
+      "collares/dama": {
+        title: "Collares Dama",
+        desc: "Collares cortos para dama, ideales para lucir solos o en capas, realzando tu estilo con delicadeza y versatilidad.",
+        heroImg: "imagenes/Anillo_Muestra.jpeg",
+        heroImgHover: "imagenes/Anillo_Modelo.jpeg",
+        products: ["corbatin-satin", "corbatin-oro"]
+      },
+      "aretes/arracadas": {
+        title: "Anillos",
+        desc: "Anillos clásicos y modernos para cualquier ocasión.",
+        heroImg: "imagenes/Anillo_Muestra.jpeg",
+        heroImgHover: "imagenes/Anillo_Modelo.jpeg",
+        products: ["arracadas-clasicas", "arracadas-chunky"]
+      },
+      "anillos": {
+        title: "Anillos",
+        desc: "Anillos clásicos y modernos para cualquier ocasión.",
+        heroImg: "imagenes/Anillo_Modelo.jpeg",
+        heroImgHover: "imagenes/Anillo_Muestra.jpeg",
+        products: ["anillo-modelo", "anillo-muestra"]
+      },
+      "pulseras": {
+        title: "Pulseras",
+        desc: "Piezas cuidadosamente elaboradas que combinan diseño y detalle para acompañarte en cada momento.",
+        heroImg: "imagenes/Pulsera_Volcanica.png",
+        heroImgHover: "imagenes/Pulseras_Onyx.png",
+        products: ["pulsera-nudo", "pulsera-bicolor"],
+        tabs: [
+          { id:"caballero", label:"Para Caballero", html:()=>"<p>Pulseras con estilo sobrio y materiales resistentes.</p>" },
+          { id:"dama", label:"Para Dama", html:()=>"<p>Pulseras delicadas y versátiles para cualquier ocasión.</p>" }
+        ]
+      },
+      "pulseras/caballero": {
+        title: "Pulseras Para Caballero",
+        desc: "Pulseras con estilo sobrio y materiales resistentes.",
+        heroImg: "imagenes/Pulsera_Volcanica.png",
+        heroImgHover: "imagenes/Pulseras_Onyx.png",
+        products: ["pulsera-nudo"]
+      },
+      "pulseras/dama": {
+        title: "Pulseras Para Dama",
+        desc: "Pulseras delicadas y versátiles para cualquier ocasión.",
+        heroImg: "imagenes/Pulseras_Onyx.png",
+        heroImgHover: "imagenes/Pulsera_Volcanica.png",
+        products: ["pulsera-bicolor"]
+      },
+      
+    };
 
+    /***********************
+     * 2) DATA: productos)
+     ***********************/
+    const PRODUCTS = {
+      // Ejemplos para que el “Ver gargantillas” muestre un grid
+      "gargantilla-luna":  { title:"Collar Aquamarina",  price: 250.00, img:"imagenes/Collar_Aquamarina.jpeg", imgHover:"imagenes/Collar_Aquamarina_Negro.jpeg" },
+      "gargantilla-perla": { title:"Collar Nautilus", price: 270.00, img:"imagenes/Collar_Nautilus.jpeg", imgHover:"imagenes/Collar_Nautilus_Negro.jpeg" },
+      "gargantilla-minimal":{ title:"Collar Libelula",price: 170.00, img:"imagenes/Collar_Libelula.jpeg", imgHover:"imagenes/2.jpeg" },
+      "corbatin-satin":    { title:"Collar Amatista",    price: 280.00, img:"imagenes/Collar_Amatista.jpeg" },
+      "corbatin-oro":      { title:"Collar Oro",      price: 310.00, img:"imagenes/Collar_Arbolvida.jpeg" },
+      "arracadas-clasicas":{ title:"Arracadas Clásicas",price: 260.00, img:"images/arra-1.jpg" },
+      "arracadas-chunky":  { title:"Arracadas Chunky",  price: 320.00, img:"images/arra-2.jpg" },
+      "anillo-modelo":     { title:"Anillo Modelo",     price: 290.00, img:"imagenes/Anillo_Modelo.jpeg" },
+      "anillo-muestra":    { title:"Anillo Muestra",    price: 260.00, img:"imagenes/Anillo_Muestra.jpeg" },
+      "pulsera-nudo":      { title:"Pulsera Piedra Volcanica",      price: 180.00, img:"imagenes/Pulsera_Volcanica.png" },
+      "pulsera-bicolor":   { title:"Pulsera Onyx",   price: 210.00, img:"imagenes/Pulseras_Onyx.png" }
+    };
+
+    /***********************
+     * 3) Router (hash): #/collares/gargantillas, #/p/gargantilla-luna, etc.
+     ***********************/
+    const app = document.getElementById("app");
+
+    function money(n){
+      return n.toLocaleString("es-MX",{ style:"currency", currency:"MXN" });
+    }
+
+    // Tabs default para categorías (se aplican si la categoría no define tabs)
+    const DEFAULT_CATEGORY_TABS = [
+      { id:"descripcion", label:"Descripción", html:(c)=>`<p>${c.desc}</p>` },
+      { id:"materiales", label:"Materiales", html:()=>`<p>Materiales de la colección (edita aquí).</p>` },
+      { id:"cuidados", label:"Cuidados", html:()=>`<ul><li>Evita perfumes/químicos.</li><li>Guarda por separado.</li><li>Limpia con paño suave.</li></ul>` },
+      
+    ];
+
+    //colores de productos
+    const DEFAULT_PRODUCT_COLORS = [
+      { name:"Negro", value:"#111111" },
+      { name:"Dorado", value:"#d4af37" },
+      { name:"Plateado", value:"#bfc7d5" },
+      { name:"Rosa", value:"#e7a9b7" }
+    ];
+
+// Render simple de tabs (reusable)
+function renderTabsHTML(items, getHtmlFn){
+  if(!items || items.length === 0) return "";
+  return `
+    <div class="tabs">
+      <div class="tabbar" role="tablist">
+        ${items.map((item, idx)=>`
+          <button
+            class="tabbtn"
+            type="button"
+            data-tab="${item.id}"
+            aria-selected="${idx === 0 ? "true" : "false"}"
+          >${item.label}</button>
+        `).join("")}
+      </div>
+      <div class="tabpanels">
+        ${items.map((item, idx)=>`
+          <div class="tabpanel${idx === 0 ? " is-active" : ""}" data-panel="${item.id}">
+            ${getHtmlFn(item)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function wireTabs(container){
+  container.querySelectorAll(".tabs").forEach((root)=>{
+    const tabbar = root.querySelector(".tabbar");
+    if(!tabbar) return;
+
+    tabbar.addEventListener("click", (e)=>{
+      const btn = e.target.closest(".tabbtn");
+      if(!btn) return;
+
+      const id = btn.dataset.tab;
+      root.querySelectorAll(".tabbtn")
+        .forEach(b=>b.setAttribute("aria-selected","false"));
+      root.querySelectorAll(".tabpanel")
+        .forEach(p=>p.classList.remove("is-active"));
+
+      btn.setAttribute("aria-selected","true");
+      const panel = root.querySelector(`.tabpanel[data-panel="${id}"]`);
+      if(panel) panel.classList.add("is-active");
+    });
+  });
+}
+
+// Render simple de acordeon (reusable)
+function renderAccordionHTML(items, getHtmlFn){
+  return `
+    <div class="accordion">
+      ${items.map(item=>`
+        <div class="accordion-item">
+          <button
+            class="accordion-header"
+            type="button"
+            data-accordion="${item.id}"
+            aria-expanded="false"
+          >
+            <span>${item.label}</span>
+            <span class="accordion-icon" aria-hidden="true"></span>
+          </button>
+
+          <div class="accordion-panel" data-panel="${item.id}">
+            <div class="accordion-panel-inner">
+              ${getHtmlFn(item)}
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+    // Activar acordeon dentro de un contenedor
+function wireAccordion(container){
+  const accordion = container.querySelector(".accordion");
+  if(!accordion) return;
+
+  accordion.addEventListener("click", (e)=>{
+    const header = e.target.closest("[data-accordion]");
+    if(!header) return;
+
+    const id = header.dataset.accordion;
+    const panel = accordion.querySelector(`[data-panel="${id}"]`);
+    if(!panel) return;
+
+    const expanded = header.getAttribute("aria-expanded") === "true";
+
+    header.setAttribute("aria-expanded", String(!expanded));
+
+    if(!expanded){
+      panel.style.maxHeight = panel.scrollHeight + "px";
+    }else{
+      panel.style.maxHeight = "0px";
+    }
+  });
+
+  /* Ajuste automático al cargar (por si hay contenido dinámico) */
+  accordion.querySelectorAll(".accordion-header[aria-expanded='true']")
+    .forEach(header=>{
+      const panel = accordion.querySelector(
+        `[data-panel="${header.dataset.accordion}"]`
+      );
+      if(panel) panel.style.maxHeight = panel.scrollHeight + "px";
+    });
+}
+
+    // Render home
+    function renderHome(){
+      app.innerHTML = `
+        <div class="hero">
+          <h1>Inicio</h1>
+          <p>Haz clic en el menú: por ejemplo <strong>Collares → Ver Gargantillas</strong> y se cargará su página.</p>
+        </div>
+        
+        <div class="grid">
+          ${["collares","aretes","pulseras","anillos"].map(key=>{
+            const c = CATEGORIES[key];
+            if(!c) return "";
+            return `
+              <a class="card" href="#/${key}">
+                <div class="img-swap">
+                 <img class="base" src="${c.heroImg}" alt="${c.title}">
+                   <img class="hover" src="${c.heroImgHover || c.heroImg}" alt="${c.title}">
+                    </div>
+                <div class="card__body">
+                  <strong>${c.title}</strong>
+                  <span>${c.desc}</span>
+                </div>
+              </a>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+    
+    //render de quienes somos
+    function renderAbout(){
+      app.innerHTML = `
+        <div class="hero">
+          <h1>Quienes Somos</h1>
+          <p>Desde 2019, Hunnab.Q nace como un proyecto artesanal que cree en el valor de
+            crear con las manos y en comunidad. Diseñan piezas de cerámica, joyería y
+            accesorios utilizando técnicas como el alambrismo, la pintura y diversos tejidos,
+            integrando cuarzos naturales y piezas pintadas a mano.</p>
+
+
+        </div>
+        </div>
+        <div class="hero" style="margin-top:16px">
+          <h2 style="margin:0 0 8px">Valores de la Empresa</h2>
+          <div class="simple-carousel" data-simple-carousel>
+            <button class="simple-nav simple-prev" type="button" aria-label="Anterior">‹</button>
+            <div class="simple-track">
+              <div class="simple-slide">
+                <div>
+                  <strong>Misión</strong>
+                  <p style="margin:6px 0 0;color:var(--muted)">Crear piezas artesanales únicas que conecten con la esencia, la creatividad y el valor de lo hecho con intención.
+                    Compartimos conocimiento accesible que impulse a emprender de forma consciente y creativa.</p>
+                </div>
+              </div>
+              <div class="simple-slide">
+                <div>
+                  <strong>Visión</strong>
+                  <p style="margin:6px 0 0;color:var(--muted)">Inspirar una comunidad creativa que valore lo hecho a mano y encuentre en la artesanía y el aprendizaje una herramienta real para transformar su vida.</p>
+                </div>
+              </div>
+              <div class="simple-slide">
+                <div>
+                  <strong>Valores</strong>
+                  <p style="margin:6px 0 0;color:var(--muted)"><li> Artesanía consciente
+                  <li> Creatividad con propósito</li>
+                  <li> Accesibilidad</li>
+                  <li> Autenticidad</li>
+                  <li> Comunidad y colaboración</li>
+                  <li> Empoderamiento</li> </p>
+                </div>
+              </div>
+            </div>
+            <button class="simple-nav simple-next" type="button" aria-label="Siguiente">›</button>
+          </div>
+        </div>
+      `;
+      wireSimpleCarousel(app.querySelector("[data-simple-carousel]"));
+    }
+
+      // Render Cuenta
+
+      function renderCuenta(){
+      app.innerHTML = `
+        
+          <p style="text-align:center;font-size:40px;font-weight:600;"><bold>
+            Mi Cuenta
+          </bold></p>
+
+        
+          <p style="text-align:center;font-size:20px;font-weight:400;">
+            Administra tu información, pedidos y seguridad.
+          </p>
+
+        <div class="grid" style="max-width:8150px;margin:auto">
+          <div class="card">
+            <div class="card__body">
+              <strong>Mis datos</strong>
+              <span>Nombre, correo y teléfono</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__body">
+              <strong>Mis pedidos</strong>
+              <span>Historial de compras</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__body">
+              <strong>Direcciones</strong>
+              <span>Gestiona tus envíos</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__body">
+              <strong>Cerrar sesión</strong>
+              <span>Salir de tu cuenta</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+
+    function wireSimpleCarousel(root){
+      if(!root) return;
+      const track = root.querySelector(".simple-track");
+      const prevBtn = root.querySelector(".simple-prev");
+      const nextBtn = root.querySelector(".simple-next");
+      const slides = track ? Array.from(track.children) : [];
+      let index = 0;
+
+      function getSlideWidth(){
+        if(!track || slides.length === 0) return 0;
+        const styles = getComputedStyle(track);
+        const gap = parseFloat(styles.gap || "0");
+        return slides[0].getBoundingClientRect().width + gap;
+      }
+
+      function go(nextIndex){
+        const w = getSlideWidth();
+        if(!w) return;
+        index = (nextIndex + slides.length) % slides.length;
+        track.scrollTo({ left: w * index, behavior: "smooth" });
+      }
+
+      function toggleCarousel(show){
+        const carousel = document.getElementById("homeCarousel");
+        if(!carousel) return;
+        carousel.style.display = show ? "block" : "none";
+      }
+
+
+      prevBtn?.addEventListener("click", ()=> go(index - 1));
+      nextBtn?.addEventListener("click", ()=> go(index + 1));
+    }
+
+    function renderCategory(key){
+      const c = CATEGORIES[key];
+      if(!c){ renderNotFound(); return; }
+
+      const personaTabs = c.tabs?.length ? c.tabs : [];
+      const infoTabs = DEFAULT_CATEGORY_TABS;
+      const showInfoAccordion = key !== "collares" && key !== "pulseras";
+
+      app.innerHTML = `
+        <div class="crumb">Inicio / ${c.title}</div>
+
+        <div class="hero" style="display:grid;grid-template-columns:1fr .9fr;gap:14px;align-items:center">
+          <div>
+            <h1 style="margin:0 0 6px">${c.title}</h1>
+            <p style="margin:0;color:var(--muted)">${c.desc}</p>
+
+            <!-- Tabs de categoria (Caballero / Dama) -->
+            ${personaTabs.length ? renderTabsHTML(personaTabs, (t)=>{
+              if(typeof t.html === "function") return t.html(c);
+              return t.html || "";
+            }) : ""}
+
+            <!-- Acordeon de info -->
+            ${showInfoAccordion ? renderAccordionHTML(infoTabs, (t)=>{
+              if(typeof t.html === "function") return t.html(c);
+              return t.html || "";
+            }) : ""}
+
+          </div>
+
+          <div class="shot big" style="margin:0">
+            <img src="${c.heroImg}" alt="${c.title}">
+          </div>
+        </div>
+
+        <div class="grid">
+          ${c.products.map(pid=>{
+            const p = PRODUCTS[pid];
+            if(!p) return "";
+            const img = p.img || (p.images ? p.images[0] : "images/placeholder.jpg");
+            const price = p.price ?? 0;
+            return `
+                <a class="card" href="#/p/${pid}">
+                <div class="img-swap">
+                <img class="base" src="${img}" alt="${p.title}">
+                <img class="hover" src="${p.imgHover || img}" alt="${p.title}">
+                </div>
+                
+                  <div class="card__body">
+                  <strong>${p.title}</strong>
+                  <span>${money(price)}</span>
+                </div>
+              </a>
+            `;
+          }).join("")}
+        </div>
+      `;
+
+      wireTabs(app);
+      wireAccordion(app);
+
+    }
+
+    function renderProduct(pid){
+      const p = PRODUCTS[pid];
+      if(!p){ renderNotFound(); return; }
+      const images = (p.images && p.images.length ? p.images : [p.img, p.imgHover]).filter(Boolean);
+      if(images.length === 0){ renderNotFound(); return; }
+      const tabs = p.tabs || [];
+      const bullets = p.bullets || [];
+      const hasStock = typeof p.inStock === "boolean";
+      const priceText = p.price != null ? money(p.price) : "";
+      const kickerHTML = p.kicker ? `<div class="kicker">${p.kicker}</div>` : "";
+      const priceHTML = priceText ? `<div class="price">${priceText}</div>` : "";
+      const stockHTML = hasStock ? `
+            <div class="stock">
+              <span class="dot"></span>
+              <span>${p.inStock ? "El artículo está en stock" : "Agotado"}</span>
+            </div>` : "";
+      const descHTML = p.shortDesc ? `<div class="desc">${p.shortDesc}</div>` : "";
+      const bulletsHTML = bullets.length ? `
+            <div class="bullets">
+              ${bullets.map(b=>`
+                <div><strong>${b.icon}</strong><span>${b.text}</span></div>
+              `).join("")}
+            </div>` : "";
+      const tabsHTML = tabs.length ? `
+            <div class="tabs">
+              <div class="tabbar" id="tabbar"></div>
+              <div id="tabpanels"></div>
+            </div>` : "";
+
+      app.innerHTML = `
+        <div class="crumb">Inicio / ${p.kicker || "Producto"} / ${p.title}</div>
+
+        <div class="product">
+          <!-- Gallery -->
+          <div class="gallery">
+            ${images.slice(0,4).map((src, i)=>`
+              <div class="shot ${i < 2 ? "big" : ""}">
+                <img src="${src}" alt="${p.title} ${i+1}">
+              </div>
+            `).join("")}
+          </div>
+
+          <!-- Side info -->
+          <aside class="side">
+            ${kickerHTML}
+            <h2 style="margin:6px 0 6px;font-size:22px">${p.title}</h2>
+            ${priceHTML}
+            ${stockHTML}
+
+            <div class="opt">
+              <label>Color</label>
+              <div class="swatches" id="swatches"></div>
+            </div>
+
+            <div class="opt">
+              <label>Cantidad</label>
+              <div class="qty">
+                <button type="button" id="minus">−</button>
+                <input id="qty" value="1" inputmode="numeric" />
+                <button type="button" id="plus">+</button>
+              </div>
+            </div>
+
+            <button class="btn primary" id="addCart">AÑADIR AL CARRITO • ${money(p.price)}</button>
+            <button class="btn alt" type="button">Comprar con Pay</button>
+            <button class="btn link" type="button">Más opciones de pago</button>
+
+            ${descHTML}
+            ${bulletsHTML}
+            ${tabsHTML}
+          </aside>
+        </div>
+      `;
+
+      // swatches
+      const sw = document.getElementById("swatches");
+      const colors = (p.colors && p.colors.length) ? p.colors : DEFAULT_PRODUCT_COLORS;
+      let selectedColor = 0;
+
+      colors.forEach((c, idx)=>{
+        const el = document.createElement("button");
+        el.className = "swatch";
+        el.type = "button";
+        el.title = c.name;
+        el.style.background = c.value;
+        el.setAttribute("role","radio");
+        el.setAttribute("aria-checked", idx === 0 ? "true" : "false");
+        el.addEventListener("click", ()=>{
+          selectedColor = idx;
+          [...sw.children].forEach(ch=>ch.setAttribute("aria-checked","false"));
+          el.setAttribute("aria-checked","true");
+        });
+        sw.appendChild(el);
+      });
+
+      // qty
+      const qtyEl = document.getElementById("qty");
+      const clampQty = ()=>{
+        let v = parseInt(qtyEl.value || "1", 10);
+        if(Number.isNaN(v) || v < 1) v = 1;
+        if(v > 99) v = 99;
+        qtyEl.value = String(v);
+      };
+      document.getElementById("minus").addEventListener("click", ()=>{ qtyEl.value = String((parseInt(qtyEl.value||"1",10)||1)-1); clampQty(); });
+      document.getElementById("plus").addEventListener("click", ()=>{ qtyEl.value = String((parseInt(qtyEl.value||"1",10)||1)+1); clampQty(); });
+      qtyEl.addEventListener("input", clampQty);
+
+      // tabs
+      if(tabs.length){
+        const tabbar = document.getElementById("tabbar");
+        const panels = document.getElementById("tabpanels");
+
+        tabs.forEach((t, idx)=>{
+          const b = document.createElement("button");
+          b.className = "tabbtn";
+          b.type = "button";
+          b.textContent = t.label;
+          b.setAttribute("aria-selected", idx === 0 ? "true" : "false");
+
+          const panel = document.createElement("div");
+          panel.className = "tabpanel" + (idx === 0 ? " is-active" : "");
+          panel.innerHTML = t.html;
+
+          b.addEventListener("click", ()=>{
+            [...tabbar.children].forEach(x=>x.setAttribute("aria-selected","false"));
+            [...panels.children].forEach(x=>x.classList.remove("is-active"));
+            b.setAttribute("aria-selected","true");
+            panel.classList.add("is-active");
+          });
+
+          tabbar.appendChild(b);
+          panels.appendChild(panel);
+        });
+      }
+
+      // add to cart demo
+      document.getElementById("addCart").addEventListener("click", ()=>{
+        clampQty();
+        alert(`Añadido: ${p.title}\nColor: ${(colors[selectedColor]?.name)||"—"}\nCantidad: ${qtyEl.value}`);
+      });
+    }
+
+    function renderNotFound(){
+      app.innerHTML = `
+        <div class="hero">
+          <h1>No encontrado</h1>
+          <p>La ruta no existe. Prueba volver al <a href="#/" style="text-decoration:underline">inicio</a>.</p>
+        </div>
+      `;
+    }
+
+    function router(){
+      const hash = (location.hash || "#/").replace("#/","");
+      if(hash === "" || hash === "/"){ renderHome(); return; }
+      if(hash === "quienes-somos"){ renderAbout(); return; }
+
+      if(hash === "cuenta"){ renderCuenta(); return; }
+
+      if(hash.startsWith("p/")){
+        const pid = hash.slice(2);
+        renderProduct(pid);
+        return;
+      }
+
+
+      // product route: p/<id>
+      if(hash.startsWith("p/")){
+        const pid = hash.slice(2);
+        renderProduct(pid);
+        return;
+      }
+
+      // category route
+      renderCategory(hash);
+    }
+
+    /***********************
+     * 4) Drawer + mobile accordion + close on nav click
+     ***********************/
+    const body = document.body;
+    const openMenu = document.getElementById("openMenu");
+    const closeMenu = document.getElementById("closeMenu");
+    const backdrop = document.getElementById("backdrop");
+    const drawer = document.getElementById("drawer");
+    const openSearch = document.getElementById("openSearch");
+    const openUser = document.getElementById("openUser");
+    const searchOverlay = document.getElementById("searchOverlay");
+    const searchPanel = document.getElementById("searchPanel");
+    const searchInput = document.getElementById("searchInput");
+    const searchResults = document.getElementById("searchResults");
+
+    function setDrawer(open){
+      body.classList.toggle("is-open", open);
+      backdrop.setAttribute("aria-hidden", String(!open));
+    }
+    function setSearch(open){
+      body.classList.toggle("is-search-open", open);
+      searchOverlay.setAttribute("aria-hidden", String(!open));
+      if(open){
+        searchInput.value = "";
+        renderSearchResults("");
+        searchInput.focus();
+      }
+    }
+    const SEARCH_ITEMS = [
+      { label:"Inicio", route:"#/" },
+      { label:"Anillos", route:"#/anillos" },
+      { label:"Quienes Somos", route:"#/quienes-somos" },
+      ...Object.keys(CATEGORIES).map((key)=>({
+        label: CATEGORIES[key].title,
+        route: `#/${key}`
+      }))
+    ];
+    function renderSearchResults(query){
+      const q = query.trim().toLowerCase();
+      const results = q
+        ? SEARCH_ITEMS.filter(item=>item.label.toLowerCase().includes(q))
+        : SEARCH_ITEMS;
+      if(results.length === 0){
+        searchResults.innerHTML = `<div class="search-empty">Sin resultados</div>`;
+        return;
+      }
+      searchResults.innerHTML = results.map(item=>`
+        <a href="${item.route}">
+          <span>${item.label}</span>
+          <span class="tag">ir</span>
+        </a>
+      `).join("");
+    }
+    openMenu.addEventListener("click", ()=> setDrawer(true));
+    closeMenu.addEventListener("click", ()=> setDrawer(false));
+    backdrop.addEventListener("click", ()=> setDrawer(false));
+    window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") setDrawer(false); });
+    openSearch.addEventListener("click", ()=> setSearch(true));
+    openSearch.addEventListener("click", ()=> setDrawer(true));
+    searchOverlay.addEventListener("click", ()=> setSearch(false));
+    window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") setSearch(false); });
+    searchInput.addEventListener("input", (e)=> renderSearchResults(e.target.value));
+    searchPanel.addEventListener("click", (e)=>{
+      const link = e.target.closest("a");
+      if(link && link.getAttribute("href")?.startsWith("#/")){
+        setSearch(false);
+      }
+    });
+
+    document.querySelectorAll("[data-toggle='mobile']").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const sec = btn.closest(".m-sec");
+        sec.dataset.open = sec.dataset.open === "true" ? "false" : "true";
+      });
+    });
+
+    // Close drawer when clicking any link inside it
+    drawer.addEventListener("click", (e)=>{
+      const a = e.target.closest("a");
+      if(a && a.getAttribute("href")?.startsWith("#/")){
+        setDrawer(false);
+      }
+    });
+    window.addEventListener("hashchange", router);
+    router();
+document.addEventListener("click", (e) => {
+  const card = e.target.closest(".card");
+  if(!card) return;
+
+  const hoverImg = card.querySelector(".img-swap img.hover");
+  const baseImg  = card.querySelector(".img-swap img.base");
+  if(!hoverImg || !baseImg) return;
+  card.classList.toggle("is-hover");
+});
+  // Autoplay carrusel
+  const track = document.getElementById("carouselTrack");
+  let index = 0;
+
+  function getSlideWidth(){
+    if(!track) return 0;
+    const slide = track.querySelector(".carousel__slide");
+    if(!slide) return 0;
+    const styles = getComputedStyle(track);
+    const gap = parseFloat(styles.gap || "0");
+    return slide.getBoundingClientRect().width + gap;
+  }
+
+  function autoplay(){
+    const slideWidth = getSlideWidth();
+    if(!slideWidth) return;
+
+    index = (index + 1) % track.children.length;
+    track.scrollTo({ left: slideWidth * index, behavior: "smooth" });
+  }
+
+  if(track){
+    setInterval(autoplay, 3000);
+  }
+</script>
 </body>
 </html>
