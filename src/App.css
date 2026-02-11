@@ -1,4 +1,4 @@
-    /* Variables y reset */
+/* Variables y reset */
     :root{
       --bg:#fff;
       --fg:#5d3f2d;
@@ -288,7 +288,7 @@
     .img-card__body strong{display:block;font-size:13px}
     .img-card__body span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 
-    /* Menu movil (drawer) */
+    /* Menu movil (hamburguesa) */
     .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:60}
     .drawer{
       position:fixed;top:0;left:0;height:100vh;width:min(92vw,380px);
