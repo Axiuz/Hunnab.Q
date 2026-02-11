@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
+/** Renderiza tabs de categoria y controla cual panel esta activo. */
 function CategoryTabs({ tabs }) {
-  const [active, setActive] = useState(() => tabs[0]?.id ?? null);
+  // Estado local
+  const [active, setActive] = useState(tabs[0]?.id ?? null);
+
+  // Sincronizacion cuando cambian los tabs
+  useEffect(() => {
+    setActive(tabs[0]?.id ?? null);
+  }, [tabs]);
+
+  // Estado vacio
   if (!tabs.length) {
     return null;
   }
 
-  const activeId = tabs.some((tab) => tab.id === active) ? active : tabs[0].id;
-
+  // Render
   return (
     <div className="tabs">
       <div className="tabbar" role="tablist">
@@ -18,7 +26,7 @@ function CategoryTabs({ tabs }) {
             type="button"
             role="tab"
             data-tab={tab.id}
-            aria-selected={activeId === tab.id ? 'true' : 'false'}
+            aria-selected={active === tab.id ? 'true' : 'false'}
             onClick={() => setActive(tab.id)}
           >
             {tab.label}
@@ -29,7 +37,7 @@ function CategoryTabs({ tabs }) {
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`tabpanel${activeId === tab.id ? ' is-active' : ''}`}
+            className={`tabpanel${active === tab.id ? ' is-active' : ''}`}
             data-panel={tab.id}
           >
             <p>{typeof tab.content === 'function' ? tab.content() : tab.content}</p>

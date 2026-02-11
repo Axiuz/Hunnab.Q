@@ -17,9 +17,12 @@ const SLIDES = [
   },
 ];
 
+/** Pagina  con descripcion y carrusel de valores. */
 function AboutPage() {
+  // Estado local del carrusel
   const [index, setIndex] = useState(0);
 
+  // Render
   return (
     <>
       <div className="hero">

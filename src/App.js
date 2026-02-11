@@ -9,7 +9,9 @@ import RouteContent from './pages/RouteContent';
 
 const APP = main();
 
+/** Componente raiz de UI: coordina ruta, overlays, busqueda y layout global. */
 function App() {
+  // Estado de interfaz
   const [route, setRoute] = useState(() => APP.router.getCurrentRoute());
   const [cartCount, setCartCount] = useState(() => APP.cart.getCount());
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -20,11 +22,13 @@ function App() {
     pulseras: false,
   });
 
+  /** Cierra menu movil y buscador. */
   const closePanels = useCallback(() => {
     setDrawerOpen(false);
     setSearchOpen(false);
   }, []);
 
+  // Efectos (router, teclado, clases globales, carrito)
   useEffect(() => {
     const handleHashChange = () => {
       setRoute(APP.router.getCurrentRoute());
@@ -60,10 +64,12 @@ function App() {
 
   const filteredSearchItems = useMemo(() => APP.search.filter(searchText), [searchText]);
 
+  /** Abre/cierra secciones expandibles del drawer movil. */
   const toggleMobileSection = (key) => {
     setMobileSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Render principal
   return (
     <>
       <Header

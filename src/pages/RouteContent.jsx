@@ -5,7 +5,9 @@ import AccountPage from './Cuenta';
 import HomePage from './Home';
 import ProductPage from './Productos';
 
+/** Router visual: devuelve la pagina segun `route.kind`. */
 function RouteContent({ app, route }) {
+  // Rutas principales de contenido
   if (route.kind === 'home') {
     return <HomePage app={app} />;
   }

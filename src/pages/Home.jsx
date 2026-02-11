@@ -1,6 +1,9 @@
+/** Vista de inicio con categorias destacadas del catalogo. */
 function HomePage({ app }) {
+  // Datos de catalogo
   const homeCategories = app.catalog.getHomeCategories();
 
+  // Render
   return (
     <>
       <div className="hero">

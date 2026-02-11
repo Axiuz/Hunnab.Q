@@ -1,4 +1,6 @@
+/** Cabecera principal con navegacion, accesos rapidos y contador de carrito. */
 function Header({ onOpenMenu, onOpenSearch, cartCount = 0 }) {
+  // Render
   return (
     <header className="header">
       <div className="header__inner">
