@@ -1,21 +1,28 @@
 import AboutPage from './QuienesSomos';
 import CategoryPage from './Categorias';
+import CartPage from './Carrito';
+import AccountPage from './Cuenta';
 import HomePage from './Home';
 import ProductPage from './Productos';
 
 function RouteContent({ app, route }) {
-  
   if (route.kind === 'home') {
-    return <Home app={app} />;
+    return <HomePage app={app} />;
   }
   if (route.kind === 'about') {
-    return <QuienesSomos />;
+    return <AboutPage />;
   }
   if (route.kind === 'product') {
-    return <Productos app={app} productId={route.id} />;
+    return <ProductPage app={app} productId={route.id} />;
   }
   if (route.kind === 'category') {
-    return <Categorias app={app} categoryKey={route.key} />;
+    return <CategoryPage app={app} categoryKey={route.key} />;
+  }
+  if (route.kind === 'cart') {
+    return <CartPage app={app} />;
+  }
+  if (route.kind === 'account') {
+    return <AccountPage />;
   }
   return null;
 }

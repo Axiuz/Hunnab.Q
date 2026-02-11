@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import Footer from './components/layout/Footer';
 import Header from './components/layout/Header';
@@ -11,6 +11,7 @@ const APP = main();
 
 function App() {
   const [route, setRoute] = useState(() => APP.router.getCurrentRoute());
+  const [cartCount, setCartCount] = useState(() => APP.cart.getCount());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -19,39 +20,43 @@ function App() {
     pulseras: false,
   });
 
+  const closePanels = useCallback(() => {
+    setDrawerOpen(false);
+    setSearchOpen(false);
+  }, []);
+
   useEffect(() => {
     const handleHashChange = () => {
       setRoute(APP.router.getCurrentRoute());
-      setDrawerOpen(false);
-      setSearchOpen(false);
+      closePanels();
       setSearchText('');
     };
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [closePanels]);
+
+  useEffect(() => APP.cart.subscribe(() => setCartCount(APP.cart.getCount())), []);
 
   useEffect(() => {
     const onEsc = (event) => {
       if (event.key === 'Escape') {
-        setDrawerOpen(false);
-        setSearchOpen(false);
+        closePanels();
       }
     };
 
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
-  }, []);
+  }, [closePanels]);
 
   useEffect(() => {
     document.body.classList.toggle('is-open', drawerOpen);
-    return () => document.body.classList.remove('is-open');
-  }, [drawerOpen]);
-
-  useEffect(() => {
     document.body.classList.toggle('is-search-open', searchOpen);
-    return () => document.body.classList.remove('is-search-open');
-  }, [searchOpen]);
+    return () => {
+      document.body.classList.remove('is-open');
+      document.body.classList.remove('is-search-open');
+    };
+  }, [drawerOpen, searchOpen]);
 
   const filteredSearchItems = useMemo(() => APP.search.filter(searchText), [searchText]);
 
@@ -61,7 +66,11 @@ function App() {
 
   return (
     <>
-      <Header onOpenMenu={() => setDrawerOpen(true)} onOpenSearch={() => setSearchOpen(true)} />
+      <Header
+        onOpenMenu={() => setDrawerOpen(true)}
+        onOpenSearch={() => setSearchOpen(true)}
+        cartCount={cartCount}
+      />
 
       <SearchPanel
         searchOpen={searchOpen}

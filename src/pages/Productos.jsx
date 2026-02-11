@@ -22,6 +22,21 @@ function ProductPage({ app, productId }) {
     app.images.normalize(product.imgHover || product.img),
   ];
 
+  const updateQty = (value) => {
+    const next = Number.parseInt(value, 10);
+    if (Number.isNaN(next)) {
+      setQty(1);
+      return;
+    }
+    setQty(Math.max(1, Math.min(99, next)));
+  };
+
+  const addToCart = () => {
+    const color = colors[selectedColor].name;
+    app.cart.addItem({ productId, quantity: qty, color });
+    window.alert(`Anadido: ${product.title}\nColor: ${color}\nCantidad: ${qty}`);
+  };
+
   return (
     <>
       <div className="crumb">Inicio / Producto / {product.title}</div>
@@ -65,14 +80,7 @@ function ProductPage({ app, productId }) {
               <input
                 value={qty}
                 inputMode="numeric"
-                onChange={(event) => {
-                  const next = Number.parseInt(event.target.value || '1', 10);
-                  if (Number.isNaN(next)) {
-                    setQty(1);
-                    return;
-                  }
-                  setQty(Math.max(1, Math.min(99, next)));
-                }}
+                onChange={(event) => updateQty(event.target.value || '1')}
               />
               <button type="button" onClick={() => setQty((prev) => Math.min(99, prev + 1))}>
                 +
@@ -80,15 +88,7 @@ function ProductPage({ app, productId }) {
             </div>
           </div>
 
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => {
-              window.alert(
-                `Anadido: ${product.title}\nColor: ${colors[selectedColor].name}\nCantidad: ${qty}`
-              );
-            }}
-          >
+          <button className="btn primary" type="button" onClick={addToCart}>
             ANADIR AL CARRITO - {app.currency.formatMXN(product.price)}
           </button>
         </aside>

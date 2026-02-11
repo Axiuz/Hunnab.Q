@@ -1,4 +1,4 @@
-function Header({ onOpenMenu, onOpenSearch }) {
+function Header({ onOpenMenu, onOpenSearch, cartCount = 0 }) {
   return (
     <header className="header">
       <div className="header__inner">
@@ -34,8 +34,8 @@ function Header({ onOpenMenu, onOpenSearch }) {
           <a className="icon-btn" href="#/cuenta" aria-label="Cuenta">
             👤
           </a>
-          <a className="icon-btn" href="#/carrito" aria-label="Carrito">
-            🛒 0
+          <a className="icon-btn" href="#/carrito" aria-label={`Carrito con ${cartCount} productos`}>
+            🛒 {cartCount}
           </a>
         </div>
       </div>

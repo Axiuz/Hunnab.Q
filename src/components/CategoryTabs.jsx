@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 function CategoryTabs({ tabs }) {
-  const [active, setActive] = useState(tabs[0]?.id ?? null);
-
-  useEffect(() => {
-    setActive(tabs[0]?.id ?? null);
-  }, [tabs]);
-
+  const [active, setActive] = useState(() => tabs[0]?.id ?? null);
   if (!tabs.length) {
     return null;
   }
+
+  const activeId = tabs.some((tab) => tab.id === active) ? active : tabs[0].id;
 
   return (
     <div className="tabs">
@@ -21,7 +18,7 @@ function CategoryTabs({ tabs }) {
             type="button"
             role="tab"
             data-tab={tab.id}
-            aria-selected={active === tab.id ? 'true' : 'false'}
+            aria-selected={activeId === tab.id ? 'true' : 'false'}
             onClick={() => setActive(tab.id)}
           >
             {tab.label}
@@ -32,7 +29,7 @@ function CategoryTabs({ tabs }) {
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`tabpanel${active === tab.id ? ' is-active' : ''}`}
+            className={`tabpanel${activeId === tab.id ? ' is-active' : ''}`}
             data-panel={tab.id}
           >
             <p>{typeof tab.content === 'function' ? tab.content() : tab.content}</p>
