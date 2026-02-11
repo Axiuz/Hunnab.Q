@@ -8,9 +8,9 @@ import {
 } from '../data/catalog-data';
 
 class CatalogModel {
-  constructor({ categorias, productos, homeCategoryKeys, defaultCategoryTabs, defaultProductColors }) {
-    this.categories = categorias;
-    this.products = productos;
+  constructor({ categories, products, homeCategoryKeys, defaultCategoryTabs, defaultProductColors }) {
+    this.categories = categories;
+    this.products = products;
     this.homeCategoryKeys = homeCategoryKeys;
     this.defaultCategoryTabs = defaultCategoryTabs;
     this.defaultProductColors = defaultProductColors;
@@ -118,6 +118,14 @@ class RouteManager {
       return { kind: 'about' };
     }
 
+    if (value === 'carrito') {
+      return { kind: 'cart' };
+    }
+
+    if (value === 'cuenta') {
+      return { kind: 'account' };
+    }
+
     if (value.startsWith('p/')) {
       return { kind: 'product', id: value.slice(2) };
     }
@@ -131,6 +139,162 @@ class RouteManager {
     }
 
     return this.parseHash(window.location.hash);
+  }
+}
+
+class CartManager {
+  constructor({ storageKey = 'hunnab_cart' } = {}) {
+    this.storageKey = storageKey;
+    this.listeners = new Set();
+    this.items = this.readFromStorage();
+  }
+
+  readFromStorage() {
+    if (typeof window === 'undefined') {
+      return [];
+    }
+
+    try {
+      const raw = window.localStorage.getItem(this.storageKey);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map((item) => this.normalizeItem(item))
+        .filter(Boolean);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  persist() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(this.storageKey, JSON.stringify(this.items));
+  }
+
+  emit() {
+    this.listeners.forEach((listener) => listener());
+  }
+
+  normalizeItem(item) {
+    if (!item || !item.productId) {
+      return null;
+    }
+
+    const quantity = Number.parseInt(item.quantity, 10);
+    if (Number.isNaN(quantity) || quantity <= 0) {
+      return null;
+    }
+
+    return {
+      productId: String(item.productId),
+      color: item.color ? String(item.color) : 'Unico',
+      quantity: Math.max(1, Math.min(99, quantity)),
+    };
+  }
+
+  findItemIndex(productId, color) {
+    return this.items.findIndex((item) => item.productId === productId && item.color === color);
+  }
+
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  getCount() {
+    return this.items.reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  addItem({ productId, quantity = 1, color = 'Unico' }) {
+    const normalized = this.normalizeItem({ productId, quantity, color });
+    if (!normalized) {
+      return;
+    }
+
+    const idx = this.findItemIndex(normalized.productId, normalized.color);
+    if (idx >= 0) {
+      this.items[idx] = {
+        ...this.items[idx],
+        quantity: Math.min(99, this.items[idx].quantity + normalized.quantity),
+      };
+    } else {
+      this.items.push(normalized);
+    }
+
+    this.persist();
+    this.emit();
+  }
+
+  updateItemQuantity({ productId, color = 'Unico', quantity }) {
+    const normalizedQty = Number.parseInt(quantity, 10);
+    if (Number.isNaN(normalizedQty)) {
+      return;
+    }
+
+    if (normalizedQty <= 0) {
+      this.removeItem({ productId, color });
+      return;
+    }
+
+    const idx = this.findItemIndex(String(productId), String(color));
+    if (idx < 0) {
+      return;
+    }
+
+    this.items[idx] = {
+      ...this.items[idx],
+      quantity: Math.min(99, normalizedQty),
+    };
+
+    this.persist();
+    this.emit();
+  }
+
+  removeItem({ productId, color = 'Unico' }) {
+    const idx = this.findItemIndex(String(productId), String(color));
+    if (idx < 0) {
+      return;
+    }
+
+    this.items.splice(idx, 1);
+    this.persist();
+    this.emit();
+  }
+
+  clear() {
+    this.items = [];
+    this.persist();
+    this.emit();
+  }
+
+  getDetailedItems(catalogModel, imageManager) {
+    return this.items
+      .map((item) => {
+        const product = catalogModel.getProduct(item.productId);
+        if (!product) {
+          return null;
+        }
+
+        const unitPrice = Number.isFinite(product.price) ? product.price : 0;
+        return {
+          ...item,
+          title: product.title,
+          image: imageManager.normalize(product.img),
+          unitPrice,
+          subtotal: unitPrice * item.quantity,
+        };
+      })
+      .filter(Boolean);
   }
 }
 
@@ -178,12 +342,17 @@ class ApplicationMain {
     return new SearchManager(catalogModel);
   }
 
+  buildCartManager() {
+    return new CartManager();
+  }
+
   run() {
     const catalogModel = this.buildCatalogModel();
     const imageManager = this.buildImageManager();
     const currencyManager = this.buildCurrencyManager();
     const routeManager = this.buildRouteManager();
     const searchManager = this.buildSearchManager(catalogModel);
+    const cartManager = this.buildCartManager();
 
     return Object.freeze({
       catalog: catalogModel,
@@ -191,6 +360,7 @@ class ApplicationMain {
       currency: currencyManager,
       router: routeManager,
       search: searchManager,
+      cart: cartManager,
     });
   }
 }
