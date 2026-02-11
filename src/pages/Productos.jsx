@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
+/** Vista detalle de producto con selector de color/cantidad y accion de carrito. */
 function ProductPage({ app, productId }) {
+  // Datos y estado local
   const product = app.catalog.getProduct(productId);
   const colors = app.catalog.getDefaultProductColors();
   const [qty, setQty] = useState(1);
@@ -22,6 +24,7 @@ function ProductPage({ app, productId }) {
     app.images.normalize(product.imgHover || product.img),
   ];
 
+  /** Valida cantidad ingresada y la limita al rango permitido. */
   const updateQty = (value) => {
     const next = Number.parseInt(value, 10);
     if (Number.isNaN(next)) {
@@ -31,12 +34,14 @@ function ProductPage({ app, productId }) {
     setQty(Math.max(1, Math.min(99, next)));
   };
 
+  /** Agrega el producto actual al carrito con color y cantidad seleccionados. */
   const addToCart = () => {
     const color = colors[selectedColor].name;
     app.cart.addItem({ productId, quantity: qty, color });
     window.alert(`Anadido: ${product.title}\nColor: ${color}\nCantidad: ${qty}`);
   };
 
+  // Render
   return (
     <>
       <div className="crumb">Inicio / Producto / {product.title}</div>

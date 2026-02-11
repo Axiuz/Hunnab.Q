@@ -1,4 +1,6 @@
+/** Pie de pagina con carrusel visual y datos de contacto. */
 function Footer({ fallbackImage }) {
+  // Render
   return (
     <>
       <section className="carousel" aria-label="Carrusel de imagenes">

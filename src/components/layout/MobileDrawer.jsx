@@ -1,4 +1,6 @@
+/** Menu lateral movil con secciones expandibles y enlaces principales. */
 function MobileDrawer({ drawerOpen, mobileSections, onCloseDrawer, onToggleMobileSection }) {
+  // Render
   return (
     <>
       <div

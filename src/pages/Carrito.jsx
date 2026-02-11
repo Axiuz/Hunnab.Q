@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
+/** Vista de carrito: permite editar cantidades, eliminar items y ver total. */
 function CartPage({ app }) {
+  // Estado y sincronizacion con modelo de carrito
   const [items, setItems] = useState(() => app.cart.getDetailedItems(app.catalog, app.images));
 
   useEffect(() => {
@@ -14,6 +16,7 @@ function CartPage({ app }) {
     [items]
   );
 
+  /** Actualiza cantidad de una linea del carrito. */
   const updateQuantity = (item, quantity) => {
     app.cart.updateItemQuantity({
       productId: item.productId,
@@ -22,6 +25,7 @@ function CartPage({ app }) {
     });
   };
 
+  /** Procesa cantidad escrita manualmente en el input. */
   const handleQuantityInput = (item, value) => {
     const next = Number.parseInt(value || '1', 10);
     if (Number.isNaN(next)) {
@@ -30,6 +34,7 @@ function CartPage({ app }) {
     updateQuantity(item, next);
   };
 
+  // Estado vacio
   if (items.length === 0) {
     return (
       <>
@@ -45,6 +50,7 @@ function CartPage({ app }) {
     );
   }
 
+  // Render carrito con items
   return (
     <>
       <div className="crumb">Inicio / Carrito</div>

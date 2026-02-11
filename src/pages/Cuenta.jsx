@@ -1,4 +1,6 @@
+/** Vista de acceso rapido para secciones de cuenta del usuario. */
 function AccountPage() {
+  // Render
   return (
     <section className="cuenta-page">
       <h1 className="cuenta-title">Mi Cuenta</h1>

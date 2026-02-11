@@ -1,9 +1,12 @@
 import CategoryTabs from '../components/CategoryTabs';
 import InfoAccordion from '../components/InfoAcordion';
 
+/** Muestra una categoria, su contenido informativo y sus productos. */
 function CategoryPage({ app, categoryKey }) {
+  // Datos base de categoria
   const category = app.catalog.getCategory(categoryKey);
 
+  // Estado de error (categoria no encontrada)
   if (!category) {
     return (
       <div className="hero">
@@ -15,9 +18,11 @@ function CategoryPage({ app, categoryKey }) {
     );
   }
 
+  // Datos derivados para render
   const showInfoAccordion = categoryKey !== 'collares' && categoryKey !== 'pulseras';
   const categoryProducts = app.catalog.getCategoryProducts(categoryKey);
 
+  // Render
   return (
     <>
       <div className="crumb">Inicio / {category.title}</div>

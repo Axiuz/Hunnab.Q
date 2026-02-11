@@ -1,9 +1,12 @@
 import { useState } from 'react';
 
+/** Acordeon con informacion extendida de la categoria seleccionada. */
 function InfoAccordion({ app, category }) {
+  // Estado y datos de entrada
   const [openId, setOpenId] = useState(null);
   const tabs = app.catalog.getCategoryInfoTabs(category);
 
+  // Render
   return (
     <div className="accordion">
       {tabs.map((tab) => {

@@ -1,4 +1,6 @@
+/** Overlay de busqueda global con filtro en vivo y atajos de navegacion. */
 function SearchPanel({ searchOpen, searchText, onSearchTextChange, onCloseSearch, items }) {
+  // Render
   return (
     <>
       <div
