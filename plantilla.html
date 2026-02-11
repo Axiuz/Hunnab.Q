@@ -634,10 +634,12 @@ span:first-child{
       </div>
     </div>
 
-    <!-- TODAS LAS CATEGOS -->
+    <!-- TODAS LAS CATEGORÍAS -->
     <nav class="nav" aria-label="Navegación principal">
       <div class="nav__inner">
         <div class="nav-item"><a class="nav-link" href="#/">INICIO</a></div>
+
+
 
         <!-- COLLARES -->
         <div class="nav-item">
@@ -748,7 +750,7 @@ span:first-child{
         <button class="m-btn" type="button" data-toggle="mobile">ANILLOS<span>▾</span></button>
       </div>
 
-      <div class="m-sec"><a class="m-btn" href="#/quienes-somos">QUIENES SOMOS</a></div>
+      <div class="m-sec"><a class="m-btn" href="#/quienes-somos">¿QUIENES SOMOS?</a></div>
   </aside>
 
   <main>
@@ -1073,6 +1075,7 @@ function wireAccordion(container){
           <h1>Inicio</h1>
           <p>Haz clic en el menú: por ejemplo <strong>Collares → Ver Gargantillas</strong> y se cargará su página.</p>
         </div>
+        
         <div class="grid">
           ${["collares","aretes","pulseras","anillos"].map(key=>{
             const c = CATEGORIES[key];
@@ -1103,6 +1106,9 @@ function wireAccordion(container){
             crear con las manos y en comunidad. Diseñan piezas de cerámica, joyería y
             accesorios utilizando técnicas como el alambrismo, la pintura y diversos tejidos,
             integrando cuarzos naturales y piezas pintadas a mano.</p>
+
+
+        </div>
         </div>
         <div class="hero" style="margin-top:16px">
           <h2 style="margin:0 0 8px">Valores de la Empresa</h2>
@@ -1125,12 +1131,12 @@ function wireAccordion(container){
               <div class="simple-slide">
                 <div>
                   <strong>Valores</strong>
-                  <p style="margin:6px 0 0;color:var(--muted)">• Artesanía consciente
-                  • Creatividad con propósito
-                  • Accesibilidad
-                  • Autenticidad
-                  • Comunidad y colaboración
-                  • Empoderamiento</p>
+                  <p style="margin:6px 0 0;color:var(--muted)"><li> Artesanía consciente
+                  <li> Creatividad con propósito</li>
+                  <li> Accesibilidad</li>
+                  <li> Autenticidad</li>
+                  <li> Comunidad y colaboración</li>
+                  <li> Empoderamiento</li> </p>
                 </div>
               </div>
             </div>
@@ -1140,6 +1146,53 @@ function wireAccordion(container){
       `;
       wireSimpleCarousel(app.querySelector("[data-simple-carousel]"));
     }
+
+      // Render Cuenta
+
+      function renderCuenta(){
+      app.innerHTML = `
+        
+          <p style="text-align:center;font-size:40px;font-weight:600;"><bold>
+            Mi Cuenta
+          </bold></p>
+
+        
+          <p style="text-align:center;font-size:20px;font-weight:400;">
+            Administra tu información, pedidos y seguridad.
+          </p>
+
+        <div class="grid" style="max-width:8150px;margin:auto">
+          <div class="card">
+            <div class="card__body">
+              <strong>Mis datos</strong>
+              <span>Nombre, correo y teléfono</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__body">
+              <strong>Mis pedidos</strong>
+              <span>Historial de compras</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__body">
+              <strong>Direcciones</strong>
+              <span>Gestiona tus envíos</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__body">
+              <strong>Cerrar sesión</strong>
+              <span>Salir de tu cuenta</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
 
     function wireSimpleCarousel(root){
       if(!root) return;
@@ -1162,6 +1215,13 @@ function wireAccordion(container){
         index = (nextIndex + slides.length) % slides.length;
         track.scrollTo({ left: w * index, behavior: "smooth" });
       }
+
+      function toggleCarousel(show){
+        const carousel = document.getElementById("homeCarousel");
+        if(!carousel) return;
+        carousel.style.display = show ? "block" : "none";
+      }
+
 
       prevBtn?.addEventListener("click", ()=> go(index - 1));
       nextBtn?.addEventListener("click", ()=> go(index + 1));
@@ -1386,6 +1446,15 @@ function wireAccordion(container){
       if(hash === "" || hash === "/"){ renderHome(); return; }
       if(hash === "quienes-somos"){ renderAbout(); return; }
 
+      if(hash === "cuenta"){ renderCuenta(); return; }
+
+      if(hash.startsWith("p/")){
+        const pid = hash.slice(2);
+        renderProduct(pid);
+        return;
+      }
+
+
       // product route: p/<id>
       if(hash.startsWith("p/")){
         const pid = hash.slice(2);
@@ -1406,6 +1475,7 @@ function wireAccordion(container){
     const backdrop = document.getElementById("backdrop");
     const drawer = document.getElementById("drawer");
     const openSearch = document.getElementById("openSearch");
+    const openUser = document.getElementById("openUser");
     const searchOverlay = document.getElementById("searchOverlay");
     const searchPanel = document.getElementById("searchPanel");
     const searchInput = document.getElementById("searchInput");
@@ -1454,6 +1524,7 @@ function wireAccordion(container){
     backdrop.addEventListener("click", ()=> setDrawer(false));
     window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") setDrawer(false); });
     openSearch.addEventListener("click", ()=> setSearch(true));
+    openSearch.addEventListener("click", ()=> setDrawer(true));
     searchOverlay.addEventListener("click", ()=> setSearch(false));
     window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") setSearch(false); });
     searchInput.addEventListener("input", (e)=> renderSearchResults(e.target.value));
