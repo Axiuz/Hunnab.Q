@@ -1,31 +1,150 @@
-/** Vista de acceso rapido para secciones de cuenta del usuario. */
-function AccountPage() {
-  // Render
+import { useMemo, useState } from 'react';
+
+/** Login/registro con persistencia en localStorage via app.auth. */
+function AccountPage({ app }) {
+  const auth = useMemo(() => app?.auth ?? null, [app]);
+  const [modoRegistro, setModoRegistro] = useState(false);
+  const [mostrarPass, setMostrarPass] = useState(false);
+  const [form, setForm] = useState({
+    nombre: '',
+    usuario: '',
+    password: '',
+  });
+  const [error, setError] = useState('');
+  const [usuarioActivo, setUsuarioActivo] = useState(() => auth?.getSessionUser() ?? null);
+
+  if (!auth) {
+    return null;
+  }
+
+  const handleChange = (field) => (event) => {
+    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+    if (error) {
+      setError('');
+    }
+  };
+
+  const cambiarModo = () => {
+    setModoRegistro((prev) => !prev);
+    setError('');
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (modoRegistro) {
+      const result = auth.register(form);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setError('');
+      setModoRegistro(false);
+      setForm((prev) => ({ ...prev, nombre: '', password: '' }));
+      return;
+    }
+
+    const result = auth.login(form);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    setError('');
+    setUsuarioActivo(result.user);
+    setForm({ nombre: '', usuario: '', password: '' });
+  };
+
+  const cerrarSesion = () => {
+    auth.logout();
+    setUsuarioActivo(null);
+    setModoRegistro(false);
+    setMostrarPass(false);
+    setError('');
+    setForm({ nombre: '', usuario: '', password: '' });
+  };
+
+  const nombreUsuario = (usuarioActivo?.nombre || usuarioActivo?.usuario || '').trim();
+
   return (
-    <section className="cuenta-page">
-      <h1 className="cuenta-title">Mi Cuenta</h1>
-      <p className="cuenta-sub">Administra tu informacion, pedidos y seguridad.</p>
+    <section className="auth-page">
+      <div className="inicio-sesion">
+        <img
+          className="inicio-sesion__logo"
+          src="/imagenes/hunnabpng.png"
+          alt="Hunnab.Q"
+          width="260"
+          height="80"
+        />
 
-      <div className="grid">
-        <div className="card">
-          <strong>Mis datos</strong>
-          <span>Nombre, correo y telefono</span>
-        </div>
+        <h1>{usuarioActivo ? 'Bienvenida' : modoRegistro ? 'Registrarse' : 'Iniciar Sesion'}</h1>
 
-        <div className="card">
-          <strong>Mis pedidos</strong>
-          <span>Historial de compras</span>
-        </div>
+        {!usuarioActivo && (
+          <p className="inicio-sesion__switch">
+            {modoRegistro ? 'Ya tienes cuenta?' : 'No tienes cuenta con nosotros?'}{' '}
+            <button type="button" className="link-btn" onClick={cambiarModo}>
+              {modoRegistro ? 'Iniciar Sesion' : 'Registrate'}
+            </button>
+          </p>
+        )}
 
-        <div className="card">
-          <strong>Direcciones</strong>
-          <span>Gestiona tus envios</span>
-        </div>
+        {!usuarioActivo && (
+          <form className="inicio-sesion__form" onSubmit={handleSubmit}>
+            {modoRegistro && (
+              <>
+                <label htmlFor="nombre">Nombre Completo:</label>
+                <input
+                  id="nombre"
+                  type="text"
+                  value={form.nombre}
+                  onChange={handleChange('nombre')}
+                  required={modoRegistro}
+                />
+              </>
+            )}
 
-        <div className="card">
-          <strong>Cerrar sesion</strong>
-          <span>Salir de tu cuenta</span>
-        </div>
+            <label htmlFor="usuario">Usuario:</label>
+            <input
+              id="usuario"
+              type="text"
+              value={form.usuario}
+              onChange={handleChange('usuario')}
+              required
+            />
+
+            <label htmlFor="password">Contrasena:</label>
+            <input
+              id="password"
+              type={mostrarPass ? 'text' : 'password'}
+              value={form.password}
+              onChange={handleChange('password')}
+              required
+            />
+
+            <label className="show-pass" htmlFor="mostrar-pass">
+              <input
+                id="mostrar-pass"
+                type="checkbox"
+                checked={mostrarPass}
+                onChange={(event) => setMostrarPass(event.target.checked)}
+              />
+              Mostrar contrasena
+            </label>
+
+            <button type="submit">{modoRegistro ? 'Registrarse' : 'Iniciar Sesion'}</button>
+
+            <p className={`auth-error ${error ? 'is-visible' : ''}`}>{error || ' '}</p>
+          </form>
+        )}
+
+        {usuarioActivo && (
+          <div className="panel-usuario">
+            <h2>{`Hola ${nombreUsuario}`}</h2>
+            <button type="button" onClick={cerrarSesion}>
+              Cerrar Sesion
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

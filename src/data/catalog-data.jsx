@@ -1,5 +1,3 @@
-export const FALLBACK_IMAGE = '/logo512.png';
-
 export const HOME_CATEGORY_KEYS = ['collares', 'aretes', 'pulseras', 'anillos'];
 
 export const CATEGORIES = {

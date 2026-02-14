@@ -36,6 +36,10 @@ class CatalogModel {
     return this.products[id] ?? null;
   }
 
+  getAllProducts() {
+    return Object.entries(this.products).map(([id, product]) => ({ id, product }));
+  }
+
   getCategoryProducts(categoryKey) {
     const category = this.getCategory(categoryKey);
     if (!category) {
@@ -315,6 +319,112 @@ class SearchManager {
   }
 }
 
+class AuthManager {
+  constructor({ userStorageKey = 'usuario', sessionStorageKey = 'sesionActiva' } = {}) {
+    this.userStorageKey = userStorageKey;
+    this.sessionStorageKey = sessionStorageKey;
+  }
+
+  isBrowser() {
+    return typeof window !== 'undefined' && Boolean(window.localStorage);
+  }
+
+  readUser() {
+    if (!this.isBrowser()) {
+      return null;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(this.userStorageKey);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.usuario || !parsed.password) {
+        return null;
+      }
+      return {
+        nombre: parsed.nombre ? String(parsed.nombre) : '',
+        usuario: String(parsed.usuario),
+        password: String(parsed.password),
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  writeUser(user) {
+    if (!this.isBrowser()) {
+      return;
+    }
+    window.localStorage.setItem(this.userStorageKey, JSON.stringify(user));
+  }
+
+  isSessionActive() {
+    if (!this.isBrowser()) {
+      return false;
+    }
+    return window.localStorage.getItem(this.sessionStorageKey) === 'true';
+  }
+
+  setSessionActive(isActive) {
+    if (!this.isBrowser()) {
+      return;
+    }
+    if (isActive) {
+      window.localStorage.setItem(this.sessionStorageKey, 'true');
+      return;
+    }
+    window.localStorage.removeItem(this.sessionStorageKey);
+  }
+
+  register({ nombre, usuario, password }) {
+    const normalizedUser = String(usuario || '').trim();
+    const normalizedPassword = String(password || '').trim();
+    const normalizedName = String(nombre || '').trim();
+
+    if (!normalizedUser || !normalizedPassword || !normalizedName) {
+      return { ok: false, error: 'Completa todos los campos para registrarte.' };
+    }
+
+    this.writeUser({
+      nombre: normalizedName,
+      usuario: normalizedUser,
+      password: normalizedPassword,
+    });
+
+    return { ok: true };
+  }
+
+  login({ usuario, password }) {
+    const normalizedUser = String(usuario || '').trim();
+    const normalizedPassword = String(password || '').trim();
+    const savedUser = this.readUser();
+
+    if (
+      !savedUser ||
+      normalizedUser !== savedUser.usuario ||
+      normalizedPassword !== savedUser.password
+    ) {
+      return { ok: false, error: 'Usuario o contrasena incorrectos.' };
+    }
+
+    this.setSessionActive(true);
+    return { ok: true, user: savedUser };
+  }
+
+  logout() {
+    this.setSessionActive(false);
+  }
+
+  getSessionUser() {
+    if (!this.isSessionActive()) {
+      return null;
+    }
+    return this.readUser();
+  }
+}
+
 class ApplicationMain {
   buildCatalogModel() {
     return new CatalogModel({
@@ -346,6 +456,10 @@ class ApplicationMain {
     return new CartManager();
   }
 
+  buildAuthManager() {
+    return new AuthManager();
+  }
+
   run() {
     const catalogModel = this.buildCatalogModel();
     const imageManager = this.buildImageManager();
@@ -353,6 +467,7 @@ class ApplicationMain {
     const routeManager = this.buildRouteManager();
     const searchManager = this.buildSearchManager(catalogModel);
     const cartManager = this.buildCartManager();
+    const authManager = this.buildAuthManager();
 
     return Object.freeze({
       catalog: catalogModel,
@@ -361,6 +476,7 @@ class ApplicationMain {
       router: routeManager,
       search: searchManager,
       cart: cartManager,
+      auth: authManager,
     });
   }
 }

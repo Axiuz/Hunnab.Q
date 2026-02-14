@@ -97,7 +97,7 @@ function App() {
         <RouteContent app={APP} route={route} />
       </main>
 
-      <Footer fallbackImage={APP.images.getFallbackImage()} />
+      <Footer />
     </>
   );
 }

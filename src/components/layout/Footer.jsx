@@ -1,19 +1,62 @@
+import { useEffect, useState } from 'react';
+
+const FOOTER_CAROUSEL_IMAGES = [
+  '/imagenes/Anillo_Modelo.jpeg',
+  '/imagenes/Anillo_Muestra.jpeg',
+  '/imagenes/Collar_Amatista.jpeg',
+  '/imagenes/Collar_Aquamarina.jpeg',
+  '/imagenes/Collar_Arbolvida.jpeg',
+  '/imagenes/Collar_Libelula.jpeg',
+  '/imagenes/Collar_Nautilus.jpeg',
+  '/imagenes/Collar_Nautilus_Negro.jpeg',
+  '/imagenes/Pulsera_Volcanica.png',
+  '/imagenes/Pulseras_Onyx.png',
+];
+const FOOTER_CAROUSEL_INTERVAL_MS = 3500;
+
 /** Pie de pagina con carrusel visual y datos de contacto. */
-function Footer({ fallbackImage }) {
+function Footer() {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    if (FOOTER_CAROUSEL_IMAGES.length <= 1) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveSlide((previousSlide) => (previousSlide + 1) % FOOTER_CAROUSEL_IMAGES.length);
+    }, FOOTER_CAROUSEL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   // Render
   return (
     <>
       <section className="carousel" aria-label="Carrusel de imagenes">
-        <div className="carousel__track" id="carouselTrack">
-          <figure className="carousel__slide">
-            <img src={fallbackImage} alt="Imagen 1" />
-          </figure>
-          <figure className="carousel__slide">
-            <img src={fallbackImage} alt="Imagen 2" />
-          </figure>
-          <figure className="carousel__slide">
-            <img src={fallbackImage} alt="Imagen 3" />
-          </figure>
+        <div className="carousel__viewport">
+          <div
+            className="carousel__track"
+            style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+          >
+            {FOOTER_CAROUSEL_IMAGES.map((src, index) => (
+              <figure className="carousel__slide" key={src}>
+                <img src={src} alt={`Imagen ${index + 1}`} />
+              </figure>
+            ))}
+          </div>
+        </div>
+
+        <div className="carousel__dots" aria-label="Navegacion del carrusel">
+          {FOOTER_CAROUSEL_IMAGES.map((src, index) => (
+            <button
+              key={`dot-${src}`}
+              type="button"
+              className={`carousel__dot ${activeSlide === index ? 'is-active' : ''}`}
+              aria-label={`Ir a imagen ${index + 1}`}
+              onClick={() => setActiveSlide(index)}
+            />
+          ))}
         </div>
       </section>
 

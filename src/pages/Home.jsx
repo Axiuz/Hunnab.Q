@@ -1,29 +1,29 @@
-/** Vista de inicio con categorias destacadas del catalogo. */
+/** Vista de inicio con todos los productos del catalogo. */
 function HomePage({ app }) {
   // Datos de catalogo
-  const homeCategories = app.catalog.getHomeCategories();
+  const allProducts = app.catalog.getAllProducts();
 
   // Render
   return (
     <>
       <div className="hero">
         <h1>Inicio</h1>
-        <p>Explora las categorias y entra a cada producto.</p>
+        <p>Explora todo el catalogo y entra a cada producto.</p>
       </div>
       <div className="grid">
-        {homeCategories.map((category) => (
-          <a key={category.key} className="card" href={`#/${category.key}`}>
+        {allProducts.map(({ id, product }) => (
+          <a key={id} className="card" href={`#/p/${id}`}>
             <div className="img-swap">
-              <img className="base" src={app.images.normalize(category.heroImg)} alt={category.title} />
+              <img className="base" src={app.images.normalize(product.img)} alt={product.title} />
               <img
                 className="hover"
-                src={app.images.normalize(category.heroImgHover || category.heroImg)}
-                alt={category.title}
+                src={app.images.normalize(product.imgHover || product.img)}
+                alt={product.title}
               />
             </div>
             <div className="card__body">
-              <strong>{category.title}</strong>
-              <span>{category.desc}</span>
+              <strong>{product.title}</strong>
+              <span>{app.currency.formatMXN(product.price)}</span>
             </div>
           </a>
         ))}

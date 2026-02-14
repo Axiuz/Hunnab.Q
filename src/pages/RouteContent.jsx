@@ -24,7 +24,7 @@ function RouteContent({ app, route }) {
     return <CartPage app={app} />;
   }
   if (route.kind === 'account') {
-    return <AccountPage />;
+    return <AccountPage app={app} />;
   }
   return null;
 }
