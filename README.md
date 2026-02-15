@@ -1,70 +1,77 @@
-# Getting Started with Create React App
+# Hunnab.Q (React + MySQL)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Este proyecto ahora incluye:
 
-## Available Scripts
+- Frontend React (`src/`)
+- API Node/Express (`server/`)
+- Conexion a MySQL con `mysql2/promise` (`server/db.mjs`)
 
-In the project directory, you can run:
+## 1) Configurar MySQL Workbench
 
-### `npm start`
+1. Abre MySQL Workbench.
+2. Crea o usa una conexion con estos datos (ejemplo local):
+   - `Hostname`: `localhost`
+   - `Port`: `3306`
+   - `Username`: `root`
+   - `Password`: tu password real
+3. Abre un query tab y ejecuta:
+   - `server/sql/init.sql`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Ese script crea la base `login_demo` y la tabla `users`.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 2) Variables de entorno
 
-### `npm test`
+1. Copia `.env.example` a `.env`
+2. Ajusta credenciales:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```env
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=TU_PASSWORD
+DB_NAME=login_demo
+DB_PORT=3306
 
-### `npm run build`
+API_PORT=4000
+CORS_ORIGIN=http://localhost:3000
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 3) Instalar dependencias
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 4) Ejecutar API y frontend
 
-### `npm run eject`
+En terminal 1:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+npm run api
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+En terminal 2:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+npm start
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Frontend: `http://localhost:3000`  
+API: `http://localhost:4000`
 
-## Learn More
+## 5) Probar conexion a MySQL
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Con la API corriendo, abre:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- `http://localhost:4000/api/health`
+- `http://localhost:4000/api/db/ping`
 
-### Code Splitting
+Si `/api/db/ping` responde `ok: true`, la conexion a MySQL funciona.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Endpoints de autenticacion
 
-### Analyzing the Bundle Size
+- `POST /api/auth/register`
+  - body: `{ "nombre": "...", "usuario": "...", "password": "..." }`
+- `POST /api/auth/login`
+  - body: `{ "usuario": "...", "password": "..." }`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+La pagina `#/cuenta` ya usa estos endpoints.
