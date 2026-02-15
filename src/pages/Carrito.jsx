@@ -34,6 +34,31 @@ function CartPage({ app }) {
     updateQuantity(item, next);
   };
 
+  /** Convierte el carrito actual en un pedido y limpia el carrito. */
+  const finalizeOrder = () => {
+    const sessionUser = app.auth?.getSessionUser?.();
+    if (!sessionUser) {
+      window.alert('Inicia sesion para generar tu pedido.');
+      window.location.hash = '#/cuenta';
+      return;
+    }
+
+    const createdOrder = app.orders?.createFromCart?.({
+      user: sessionUser,
+      items,
+      total,
+    });
+
+    if (!createdOrder) {
+      window.alert('No se pudo generar el pedido.');
+      return;
+    }
+
+    app.cart.clear();
+    window.alert(`Pedido ${createdOrder.id} creado correctamente.`);
+    window.location.hash = '#/cuenta';
+  };
+
   // Estado vacio
   if (items.length === 0) {
     return (
@@ -111,8 +136,8 @@ function CartPage({ app }) {
             <span>Total</span>
             <strong>{app.currency.formatMXN(total)}</strong>
           </div>
-          <button className="btn primary" type="button">
-            Continuar compra
+          <button className="btn primary" type="button" onClick={finalizeOrder}>
+            Finalizar pedido
           </button>
           <button className="btn link" type="button" onClick={() => app.cart.clear()}>
             Vaciar carrito

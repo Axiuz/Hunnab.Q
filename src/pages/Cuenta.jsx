@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 
+const REGEX_PASSWORD = /^(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,10}$/;
+
 /** Login/registro con persistencia en localStorage via app.auth. */
 function AccountPage({ app }) {
   const auth = useMemo(() => app?.auth ?? null, [app]);
@@ -7,10 +9,12 @@ function AccountPage({ app }) {
   const [mostrarPass, setMostrarPass] = useState(false);
   const [form, setForm] = useState({
     nombre: '',
+    correo: '',
     usuario: '',
     password: '',
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [usuarioActivo, setUsuarioActivo] = useState(() => auth?.getSessionUser() ?? null);
 
   if (!auth) {
@@ -29,30 +33,42 @@ function AccountPage({ app }) {
     setError('');
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setIsSubmitting(true);
 
-    if (modoRegistro) {
-      const result = auth.register(form);
+    try {
+      if (modoRegistro) {
+        if (!REGEX_PASSWORD.test(form.password)) {
+          setError(
+            'La contrasena debe tener entre 6 y 10 caracteres, incluir al menos un signo especial (!@#$%^&*) y solo puede contener letras (sin enie ni acentos), numeros y esos signos.'
+          );
+          return;
+        }
+
+        const result = await auth.register(form);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setError('');
+        setModoRegistro(false);
+        setForm((prev) => ({ ...prev, nombre: '', correo: '', password: '' }));
+        return;
+      }
+
+      const result = await auth.login(form);
       if (!result.ok) {
         setError(result.error);
         return;
       }
+
       setError('');
-      setModoRegistro(false);
-      setForm((prev) => ({ ...prev, nombre: '', password: '' }));
-      return;
+      setUsuarioActivo(result.user);
+      setForm({ nombre: '', correo: '', usuario: '', password: '' });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const result = auth.login(form);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-
-    setError('');
-    setUsuarioActivo(result.user);
-    setForm({ nombre: '', usuario: '', password: '' });
   };
 
   const cerrarSesion = () => {
@@ -61,10 +77,19 @@ function AccountPage({ app }) {
     setModoRegistro(false);
     setMostrarPass(false);
     setError('');
-    setForm({ nombre: '', usuario: '', password: '' });
+    setForm({ nombre: '', correo: '', usuario: '', password: '' });
   };
 
   const nombreUsuario = (usuarioActivo?.nombre || usuarioActivo?.usuario || '').trim();
+  const pedidosUsuario = usuarioActivo ? app.orders?.getUserOrders?.(usuarioActivo) ?? [] : [];
+
+  const formatOrderDate = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+  };
 
   return (
     <section className="auth-page">
@@ -81,7 +106,7 @@ function AccountPage({ app }) {
 
         {!usuarioActivo && (
           <p className="inicio-sesion__switch">
-            {modoRegistro ? 'Ya tienes cuenta?' : 'No tienes cuenta con nosotros?'}{' '}
+            {modoRegistro ? 'Ya tienes cuenta?' : 'No tienes cuenta?'}{' '}
             <button type="button" className="link-btn" onClick={cambiarModo}>
               {modoRegistro ? 'Iniciar Sesion' : 'Registrate'}
             </button>
@@ -100,6 +125,21 @@ function AccountPage({ app }) {
                   onChange={handleChange('nombre')}
                   required={modoRegistro}
                 />
+
+                <label htmlFor="correo">Correo Electronico:</label>
+                <input
+                  id="correo"
+                  type="email"
+                  value={form.correo}
+                  onChange={handleChange('correo')}
+                  required={modoRegistro}
+                />
+
+                <p className="password-help">
+                  La contrasena debe tener entre 6 y 10 caracteres, incluir al menos un signo
+                  especial (!@#$%^&*) y solo puede contener letras (sin enie ni acentos),
+                  numeros y esos signos.
+                </p>
               </>
             )}
 
@@ -131,7 +171,9 @@ function AccountPage({ app }) {
               Mostrar contrasena
             </label>
 
-            <button type="submit">{modoRegistro ? 'Registrarse' : 'Iniciar Sesion'}</button>
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Procesando...' : modoRegistro ? 'Registrarse' : 'Iniciar Sesion'}
+            </button>
 
             <p className={`auth-error ${error ? 'is-visible' : ''}`}>{error || ' '}</p>
           </form>
@@ -139,7 +181,31 @@ function AccountPage({ app }) {
 
         {usuarioActivo && (
           <div className="panel-usuario">
-            <h2>{`Hola ${nombreUsuario}`}</h2>
+            <h2>{`Hola ${nombreUsuario} 💛`}</h2>
+
+            <section className="pedidos-panel" aria-label="Mis pedidos">
+              <h3>Mis pedidos</h3>
+              {pedidosUsuario.length === 0 ? (
+                <p className="pedidos-empty">
+                  Aun no tienes pedidos. Ve al <a href="#/carrito">carrito</a> y finaliza uno.
+                </p>
+              ) : (
+                <div className="pedidos-list">
+                  {pedidosUsuario.map((pedido) => (
+                    <article key={pedido.id} className="pedido-card">
+                      <div className="pedido-card__top">
+                        <strong>{pedido.id}</strong>
+                        <span>{pedido.status}</span>
+                      </div>
+                      <p>{formatOrderDate(pedido.createdAt)}</p>
+                      <p>{`Total: ${app.currency.formatMXN(pedido.total)}`}</p>
+                      <p>{`Productos: ${pedido.items.length}`}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <button type="button" onClick={cerrarSesion}>
               Cerrar Sesion
             </button>

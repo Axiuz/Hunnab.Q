@@ -1,3 +1,5 @@
+export const FALLBACK_IMAGE = '/imagenes/hunnabpng.png';
+
 export const HOME_CATEGORY_KEYS = ['collares', 'aretes', 'pulseras', 'anillos'];
 
 export const CATEGORIES = {

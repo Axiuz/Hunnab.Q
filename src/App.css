@@ -11,7 +11,7 @@
       --black:#0b0b0b;
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--fg)}
+    body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;background:var(--bg);color:var(--fg)}
     a{color:inherit;text-decoration:none}
     img{max-width:100%;display:block}
     button,select{font:inherit}
@@ -513,9 +513,9 @@
       width:100%;
       max-width:400px;
       background:#dfded6;
-      border-radius:10px;
-      padding:20px;
-      box-shadow:0 0 10px rgba(54, 16, 50, 0.1);
+      border-radius:15px;
+      padding:30px;
+      box-shadow:0 10px 25px rgba(0,0,0,.1);
       text-align:center;
     }
     .inicio-sesion__logo{
@@ -526,11 +526,11 @@
     }
     .inicio-sesion h1{
       margin:0 0 10px;
-      font-size:34px;
+      font-size:30px;
     }
     .inicio-sesion__switch{
-      margin:0 0 18px;
-      font-size:16px;
+      margin:0 0 20px;
+      font-size:15px;
     }
     .link-btn{
       border:0;
@@ -552,33 +552,40 @@
       display:block;
       width:300px;
       text-align:center;
-      margin:10px 0;
+      margin:5px 0;
     }
     .inicio-sesion__form input[type="text"],
+    .inicio-sesion__form input[type="email"],
     .inicio-sesion__form input[type="password"]{
       width:300px;
       padding:10px;
-      margin-bottom:12px;
+      margin-bottom:15px;
       border:1px solid #858383;
       border-radius:15px;
       background:#fff;
+      outline:none;
     }
     .inicio-sesion button:not(.link-btn){
       background:#c1be50;
       color:#fff;
-      padding:15px 25px;
+      padding:12px 25px;
       border:none;
       border-radius:25px;
       cursor:pointer;
       font-size:15px;
       font-weight:700;
+      transition:.3s;
     }
     .inicio-sesion button:not(.link-btn):hover{
       background:#060706;
     }
+    .inicio-sesion button:not(.link-btn):disabled{
+      opacity:.75;
+      cursor:not-allowed;
+    }
     .inicio-sesion .show-pass{
       width:300px;
-      margin:6px 0 16px;
+      margin:0 0 16px;
       font-size:14px;
       font-weight:400;
       display:flex;
@@ -587,10 +594,20 @@
       gap:8px;
     }
     .auth-error{
-      margin:12px 0 0;
+      margin:10px 0 0;
       min-height:20px;
       color:#b00020;
+      font-size:14px;
       display:none;
+    }
+    .password-help{
+      width:300px;
+      margin:0 0 12px;
+      color:#5d3f2d;
+      font-size:12px;
+      line-height:1.4;
+      font-weight:500;
+      text-align:center;
     }
     .auth-error.is-visible{
       display:block;
@@ -599,11 +616,62 @@
       display:grid;
       gap:12px;
       justify-items:center;
+      width:100%;
     }
     .panel-usuario h2{
       margin:6px 0;
       font-size:24px;
       color:#5e3f2d;
+    }
+    .pedidos-panel{
+      width:100%;
+      text-align:left;
+      border:1px solid #bdb9ad;
+      border-radius:12px;
+      padding:12px;
+      background:#f3f1ea;
+    }
+    .pedidos-panel h3{
+      margin:0 0 10px;
+      font-size:18px;
+      color:#5e3f2d;
+    }
+    .pedidos-empty{
+      margin:0;
+      color:#5d3f2d;
+      font-size:14px;
+      line-height:1.5;
+    }
+    .pedidos-list{
+      display:grid;
+      gap:10px;
+    }
+    .pedido-card{
+      border:1px solid #c9c4b8;
+      border-radius:10px;
+      background:#fff;
+      padding:10px;
+      display:grid;
+      gap:6px;
+    }
+    .pedido-card p{
+      margin:0;
+      font-size:13px;
+      color:#444;
+    }
+    .pedido-card__top{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .pedido-card__top strong{
+      font-size:14px;
+    }
+    .pedido-card__top span{
+      font-size:12px;
+      color:#2f6b3a;
+      font-weight:700;
     }
     @media (max-width: 480px){
       .inicio-sesion{
@@ -611,7 +679,9 @@
       }
       .inicio-sesion__form label,
       .inicio-sesion__form input[type="text"],
+      .inicio-sesion__form input[type="email"],
       .inicio-sesion__form input[type="password"],
+      .password-help,
       .inicio-sesion .show-pass{
         width:100%;
       }

@@ -302,6 +302,93 @@ class CartManager {
   }
 }
 
+class OrderManager {
+  constructor({ storageKey = 'hunnab_orders' } = {}) {
+    this.storageKey = storageKey;
+    this.orders = this.readFromStorage();
+  }
+
+  isBrowser() {
+    return typeof window !== 'undefined' && Boolean(window.localStorage);
+  }
+
+  readFromStorage() {
+    if (!this.isBrowser()) {
+      return [];
+    }
+
+    try {
+      const raw = window.localStorage.getItem(this.storageKey);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed.filter(Boolean);
+    } catch (error) {
+      return [];
+    }
+  }
+
+  persist() {
+    if (!this.isBrowser()) {
+      return;
+    }
+    window.localStorage.setItem(this.storageKey, JSON.stringify(this.orders));
+  }
+
+  createFromCart({ user, items, total }) {
+    if (!user || !Array.isArray(items) || items.length === 0) {
+      return null;
+    }
+
+    const order = {
+      id: `PED-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      status: 'Confirmado',
+      user: {
+        id: user.id ?? null,
+        usuario: user.usuario ?? '',
+        nombre: user.nombre ?? user.usuario ?? '',
+      },
+      total: Number.isFinite(total) ? total : 0,
+      items: items.map((item) => ({
+        productId: item.productId,
+        title: item.title,
+        quantity: item.quantity,
+        color: item.color,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+      })),
+    };
+
+    this.orders.unshift(order);
+    this.persist();
+    return order;
+  }
+
+  getUserOrders(user) {
+    if (!user) {
+      return [];
+    }
+
+    const userId = user.id ?? null;
+    const username = String(user.usuario || '').trim();
+
+    return this.orders.filter((order) => {
+      if (!order?.user) {
+        return false;
+      }
+      if (userId !== null && order.user.id !== null) {
+        return Number(order.user.id) === Number(userId);
+      }
+      return String(order.user.usuario || '').trim() === username;
+    });
+  }
+}
+
 class SearchManager {
   constructor(catalogModel) {
     this.catalogModel = catalogModel;
@@ -320,44 +407,56 @@ class SearchManager {
 }
 
 class AuthManager {
-  constructor({ userStorageKey = 'usuario', sessionStorageKey = 'sesionActiva' } = {}) {
-    this.userStorageKey = userStorageKey;
+  constructor({
+    apiBase = process.env.REACT_APP_API_BASE || '',
+    sessionStorageKey = 'sesionActiva',
+    sessionUserStorageKey = 'usuarioSesion',
+  } = {}) {
+    this.apiBase = apiBase;
     this.sessionStorageKey = sessionStorageKey;
+    this.sessionUserStorageKey = sessionUserStorageKey;
   }
 
   isBrowser() {
     return typeof window !== 'undefined' && Boolean(window.localStorage);
   }
 
-  readUser() {
+  buildApiUrl(path) {
+    if (!this.apiBase) {
+      return path;
+    }
+    return `${this.apiBase}${path}`;
+  }
+
+  readSessionUser() {
     if (!this.isBrowser()) {
       return null;
     }
 
     try {
-      const raw = window.localStorage.getItem(this.userStorageKey);
+      const raw = window.localStorage.getItem(this.sessionUserStorageKey);
       if (!raw) {
         return null;
       }
       const parsed = JSON.parse(raw);
-      if (!parsed || !parsed.usuario || !parsed.password) {
+      if (!parsed || !parsed.usuario) {
         return null;
       }
       return {
-        nombre: parsed.nombre ? String(parsed.nombre) : '',
+        id: parsed.id ? Number(parsed.id) : null,
+        nombre: parsed.nombre ? String(parsed.nombre) : String(parsed.usuario),
         usuario: String(parsed.usuario),
-        password: String(parsed.password),
       };
     } catch (error) {
       return null;
     }
   }
 
-  writeUser(user) {
+  writeSessionUser(user) {
     if (!this.isBrowser()) {
       return;
     }
-    window.localStorage.setItem(this.userStorageKey, JSON.stringify(user));
+    window.localStorage.setItem(this.sessionUserStorageKey, JSON.stringify(user));
   }
 
   isSessionActive() {
@@ -376,41 +475,79 @@ class AuthManager {
       return;
     }
     window.localStorage.removeItem(this.sessionStorageKey);
+    window.localStorage.removeItem(this.sessionUserStorageKey);
   }
 
-  register({ nombre, usuario, password }) {
+  async register({ nombre, correo, usuario, password }) {
     const normalizedUser = String(usuario || '').trim();
+    const normalizedEmail = String(correo || '').trim();
     const normalizedPassword = String(password || '').trim();
     const normalizedName = String(nombre || '').trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!normalizedUser || !normalizedPassword || !normalizedName) {
+    if (!normalizedUser || !normalizedPassword || !normalizedName || !normalizedEmail) {
       return { ok: false, error: 'Completa todos los campos para registrarte.' };
     }
-
-    this.writeUser({
-      nombre: normalizedName,
-      usuario: normalizedUser,
-      password: normalizedPassword,
-    });
-
-    return { ok: true };
-  }
-
-  login({ usuario, password }) {
-    const normalizedUser = String(usuario || '').trim();
-    const normalizedPassword = String(password || '').trim();
-    const savedUser = this.readUser();
-
-    if (
-      !savedUser ||
-      normalizedUser !== savedUser.usuario ||
-      normalizedPassword !== savedUser.password
-    ) {
-      return { ok: false, error: 'Usuario o contrasena incorrectos.' };
+    if (!emailPattern.test(normalizedEmail)) {
+      return { ok: false, error: 'Ingresa un correo electronico valido.' };
     }
 
-    this.setSessionActive(true);
-    return { ok: true, user: savedUser };
+    try {
+      const response = await fetch(this.buildApiUrl('/api/auth/register'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: normalizedName,
+          correo: normalizedEmail,
+          usuario: normalizedUser,
+          password: normalizedPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { ok: false, error: data.error || 'No se pudo registrar el usuario.' };
+      }
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+
+  async login({ usuario, password }) {
+    const normalizedUser = String(usuario || '').trim();
+    const normalizedPassword = String(password || '').trim();
+
+    if (!normalizedUser || !normalizedPassword) {
+      return { ok: false, error: 'Usuario y contrasena son obligatorios.' };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario: normalizedUser,
+          password: normalizedPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.user) {
+        return { ok: false, error: data.error || 'Usuario o contrasena incorrectos.' };
+      }
+
+      const sessionUser = {
+        id: data.user.id ?? null,
+        nombre: data.user.nombre ?? data.user.usuario,
+        usuario: data.user.usuario,
+      };
+      this.writeSessionUser(sessionUser);
+      this.setSessionActive(true);
+      return { ok: true, user: sessionUser };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
   }
 
   logout() {
@@ -421,7 +558,7 @@ class AuthManager {
     if (!this.isSessionActive()) {
       return null;
     }
-    return this.readUser();
+    return this.readSessionUser();
   }
 }
 
@@ -456,6 +593,10 @@ class ApplicationMain {
     return new CartManager();
   }
 
+  buildOrderManager() {
+    return new OrderManager();
+  }
+
   buildAuthManager() {
     return new AuthManager();
   }
@@ -467,6 +608,7 @@ class ApplicationMain {
     const routeManager = this.buildRouteManager();
     const searchManager = this.buildSearchManager(catalogModel);
     const cartManager = this.buildCartManager();
+    const orderManager = this.buildOrderManager();
     const authManager = this.buildAuthManager();
 
     return Object.freeze({
@@ -476,6 +618,7 @@ class ApplicationMain {
       router: routeManager,
       search: searchManager,
       cart: cartManager,
+      orders: orderManager,
       auth: authManager,
     });
   }
