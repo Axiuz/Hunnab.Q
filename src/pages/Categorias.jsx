@@ -39,7 +39,13 @@ function CategoryPage({ app, categoryKey }) {
           <h1 style={{ margin: '0 0 6px' }}>{category.title}</h1>
           <p style={{ margin: 0, color: 'var(--muted)' }}>{category.desc}</p>
           {!!category.tabs?.length && (
-            <CategoryTabs tabs={category.tabs.map((tab) => ({ ...tab, content: () => tab.content }))} />
+            <CategoryTabs
+              tabs={category.tabs.map((tab) => ({
+                ...tab,
+                route: `#/${categoryKey}/${tab.id}`,
+                content: () => tab.content,
+              }))}
+            />
           )}
           {showInfoAccordion && <InfoAccordion app={app} category={category} />}
         </div>
