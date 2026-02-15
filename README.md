@@ -1,77 +1,89 @@
-# Hunnab.Q (React + MySQL)
+ Hunnab.Q (React + MySQL)
 
-Este proyecto ahora incluye:
+Proyecto con:
 
 - Frontend React (`src/`)
 - API Node/Express (`server/`)
-- Conexion a MySQL con `mysql2/promise` (`server/db.mjs`)
+- Conexión MySQL con `mysql2/promise` (`server/db.mjs`)
 
-## 1) Configurar MySQL Workbench
+## 1) Preparar base de datos
 
-1. Abre MySQL Workbench.
-2. Crea o usa una conexion con estos datos (ejemplo local):
-   - `Hostname`: `localhost`
-   - `Port`: `3306`
-   - `Username`: `root`
-   - `Password`: tu password real
-3. Abre un query tab y ejecuta:
-   - `server/sql/init.sql`
+En MySQL Workbench ejecuta:
 
-Ese script crea la base `login_demo` y la tabla `users`.
+```sql
+SOURCE server/sql/init.sql;
+```
 
-## 2) Variables de entorno
+Ese script crea la base `Hunnab_Q` y tablas como `usuario`, `carrito`, `detalle_carrito`, etc.
 
-1. Copia `.env.example` a `.env`
-2. Ajusta credenciales:
+## 2) Crear usuario de BD para la app
+
+```sql
+CREATE USER IF NOT EXISTS 'appuser'@'localhost' IDENTIFIED BY 'AppPass_123!';
+CREATE USER IF NOT EXISTS 'appuser'@'127.0.0.1' IDENTIFIED BY 'AppPass_123!';
+
+GRANT ALL PRIVILEGES ON Hunnab_Q.* TO 'appuser'@'localhost';
+GRANT ALL PRIVILEGES ON Hunnab_Q.* TO 'appuser'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+## 3) Variables de entorno
+
+Crea `.env` en la raíz con:
 
 ```env
 DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=TU_PASSWORD
-DB_NAME=login_demo
 DB_PORT=3306
+DB_USER=appuser
+DB_PASSWORD=AppPass_123!
+DB_NAME=Hunnab_Q
 
 API_PORT=4000
 CORS_ORIGIN=http://localhost:3000
+
+# Opcional en macOS si usas socket:
+# DB_SOCKET_PATH=/tmp/mysql.sock
 ```
 
-## 3) Instalar dependencias
+## 4) Instalar dependencias
 
 ```bash
 npm install
 ```
 
-## 4) Ejecutar API y frontend
+## 5) Ejecutar en desarrollo
 
-En terminal 1:
+Terminal 1 (API):
 
 ```bash
 npm run api
 ```
 
-En terminal 2:
+Terminal 2 (frontend):
 
 ```bash
 npm start
 ```
 
-Frontend: `http://localhost:3000`  
-API: `http://localhost:4000`
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:4000`
 
-## 5) Probar conexion a MySQL
+## 6) Probar conexión
 
-Con la API corriendo, abre:
+Con la API arriba:
 
 - `http://localhost:4000/api/health`
 - `http://localhost:4000/api/db/ping`
 
-Si `/api/db/ping` responde `ok: true`, la conexion a MySQL funciona.
+Si `/api/db/ping` responde `ok: true`, la conexión a MySQL está correcta.
 
-## Endpoints de autenticacion
+## Endpoints de autenticación
 
 - `POST /api/auth/register`
-  - body: `{ "nombre": "...", "usuario": "...", "password": "..." }`
+  - body:
+  - `{ "nombre": "...", "correo": "...", "usuario": "...", "password": "..." }`
 - `POST /api/auth/login`
-  - body: `{ "usuario": "...", "password": "..." }`
+  - body:
+  - `{ "usuario": "...", "password": "..." }`
 
-La pagina `#/cuenta` ya usa estos endpoints.
+La contraseña se guarda hasheada (`bcrypt`) en `usuario.password_hash`.
