@@ -673,6 +673,104 @@
       color:#2f6b3a;
       font-weight:700;
     }
+    .admin-productos-panel{
+      width:100%;
+      text-align:left;
+      border:1px solid #bdb9ad;
+      border-radius:12px;
+      padding:12px;
+      background:#ecebe4;
+    }
+    .admin-productos-panel h3{
+      margin:0 0 10px;
+      font-size:16px;
+      color:#5e3f2d;
+    }
+    .admin-create-form{
+      display:grid;
+      gap:8px;
+      margin-bottom:10px;
+    }
+    .admin-create-form label{
+      width:100%;
+      margin:0;
+      text-align:left;
+      font-size:12px;
+      font-weight:700;
+      color:#5e3f2d;
+    }
+    .admin-create-form input,
+    .admin-create-form select{
+      width:100%;
+      border:1px solid #b6b1a5;
+      border-radius:10px;
+      background:#fff;
+      padding:10px;
+      font-size:13px;
+      outline:none;
+    }
+    .admin-create-form button{
+      justify-self:start;
+    }
+    .admin-msg{
+      margin:6px 0;
+      font-size:13px;
+      line-height:1.4;
+    }
+    .admin-msg--error{color:#b00020}
+    .admin-msg--ok{color:#2f6b3a}
+    .admin-products-list{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+      max-height:320px;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .admin-product-card{
+      border:1px solid #c9c4b8;
+      border-radius:10px;
+      background:#fff;
+      padding:10px;
+      display:grid;
+      gap:6px;
+    }
+    .admin-product-card p{
+      margin:0;
+      font-size:12px;
+      color:#4a4a4a;
+    }
+    .admin-product-card__top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .admin-product-card__top strong{
+      font-size:14px;
+    }
+    .admin-product-card__top span{
+      font-size:11px;
+      font-weight:700;
+      color:#5e3f2d;
+    }
+    .admin-rename-box{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .admin-rename-box input{
+      flex:1;
+      border:1px solid #b6b1a5;
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:12px;
+      outline:none;
+    }
+    .admin-actions{
+      display:flex;
+      justify-content:flex-start;
+    }
     @media (max-width: 480px){
       .inicio-sesion{
         max-width:100%;
@@ -682,6 +780,8 @@
       .inicio-sesion__form input[type="email"],
       .inicio-sesion__form input[type="password"],
       .password-help,
+      .admin-create-form input,
+      .admin-create-form select,
       .inicio-sesion .show-pass{
         width:100%;
       }

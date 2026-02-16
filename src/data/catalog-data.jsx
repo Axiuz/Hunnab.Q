@@ -1,7 +1,13 @@
+/**
+ * Datos estaticos base del catalogo.
+ * Este archivo define la "fuente de verdad" inicial para categorias y productos.
+ * Los cambios visuales/admin en runtime se guardan en localStorage desde CatalogModel.
+ */
 export const FALLBACK_IMAGE = '/imagenes/hunnabpng.png';
 
 export const HOME_CATEGORY_KEYS = ['collares', 'aretes', 'pulseras', 'anillos'];
 
+// Definicion de categorias y subcategorias navegables por hash.
 export const CATEGORIES = {
   collares: {
     title: 'Collares',
@@ -87,6 +93,7 @@ export const CATEGORIES = {
   },
 };
 
+// Catalogo base de productos.
 export const PRODUCTS = {
   'gargantilla-luna': {
     title: 'Collar Aquamarina',
@@ -148,6 +155,7 @@ export const PRODUCTS = {
   },
 };
 
+// Tabs por defecto del acordeon informativo de categoria.
 export const DEFAULT_CATEGORY_TABS = [
   {
     id: 'descripcion',
@@ -166,6 +174,7 @@ export const DEFAULT_CATEGORY_TABS = [
   },
 ];
 
+// Paleta disponible para el selector de color en detalle de producto.
 export const DEFAULT_PRODUCT_COLORS = [
   { name: 'Negro', value: '#111111' },
   { name: 'Dorado', value: '#d4af37' },

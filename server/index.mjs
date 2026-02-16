@@ -6,16 +6,26 @@ import { pool } from './db.mjs';
 
 dotenv.config();
 
+/**
+ * API de autenticacion para Hunnab.Q.
+ * Incluye:
+ * - Health checks
+ * - Registro de usuario
+ * - Login contra MySQL con password hash (bcrypt)
+ */
 const app = express();
 const port = Number(process.env.API_PORT || 4000);
 
+// Middlewares globales
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
 app.use(express.json());
 
+// Verifica que la API esta viva.
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// Verifica conexion real a MySQL.
 app.get('/api/db/ping', async (_req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1 AS ok');
@@ -25,6 +35,10 @@ app.get('/api/db/ping', async (_req, res) => {
   }
 });
 
+/**
+ * Asegura la tabla `usuario` minima requerida por login/registro.
+ * Se ejecuta al arrancar la API para evitar errores por esquema faltante.
+ */
 async function ensureUsersSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuario (
@@ -54,6 +68,7 @@ async function ensureUsersSchema() {
   }
 }
 
+// Endpoint de registro: valida entrada, evita duplicados y guarda hash.
 app.post('/api/auth/register', async (req, res) => {
   const nombre = String(req.body?.nombre || '').trim();
   const correo = String(req.body?.correo || '').trim().toLowerCase();
@@ -103,6 +118,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Endpoint de login: valida credenciales y devuelve datos minimos de sesion.
 app.post('/api/auth/login', async (req, res) => {
   const usuario = String(req.body?.usuario || '').trim();
   const password = String(req.body?.password || '').trim();
@@ -114,7 +130,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT id_usuario, nombre, usuario, password_hash FROM usuario WHERE usuario = ? LIMIT 1',
+      'SELECT id_usuario, nombre, usuario, password_hash, tipo_usuario FROM usuario WHERE usuario = ? LIMIT 1',
       [usuario]
     );
     if (rows.length === 0) {
@@ -135,6 +151,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id_usuario,
         nombre: user.nombre,
         usuario: user.usuario,
+        tipoUsuario: user.tipo_usuario,
       },
     });
   } catch (error) {
@@ -144,6 +161,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Arranque controlado de la API.
 async function startServer() {
   try {
     await ensureUsersSchema();

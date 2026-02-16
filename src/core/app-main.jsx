@@ -7,6 +7,13 @@ import {
   PRODUCTS,
 } from '../data/catalog-data';
 
+/**
+ * Capa de dominio del frontend.
+ * Este modulo centraliza modelos/servicios de la app y devuelve un contenedor
+ * `APP` con APIs estables usadas por las vistas React.
+ */
+
+/** Modelo de catalogo con soporte para personalizaciones admin persistidas localmente. */
 class CatalogModel {
   constructor({ categories, products, homeCategoryKeys, defaultCategoryTabs, defaultProductColors }) {
     this.categories = categories;
@@ -14,8 +21,76 @@ class CatalogModel {
     this.homeCategoryKeys = homeCategoryKeys;
     this.defaultCategoryTabs = defaultCategoryTabs;
     this.defaultProductColors = defaultProductColors;
+
+    this.productOverridesStorageKey = 'hunnab_product_overrides';
+    this.hiddenProductsStorageKey = 'hunnab_hidden_products';
+    this.customProductsStorageKey = 'hunnab_custom_products';
+    this.customCategoryProductsStorageKey = 'hunnab_custom_category_products';
+
+    this.productOverrides = this.readObjectFromStorage(this.productOverridesStorageKey);
+    this.hiddenProductIds = new Set(this.readArrayFromStorage(this.hiddenProductsStorageKey));
+    this.customProducts = this.readObjectFromStorage(this.customProductsStorageKey);
+    this.customCategoryProducts = this.readObjectFromStorage(this.customCategoryProductsStorageKey);
   }
 
+  // Storage helpers.
+  isBrowser() {
+    return typeof window !== 'undefined' && Boolean(window.localStorage);
+  }
+
+  readObjectFromStorage(key) {
+    if (!this.isBrowser()) {
+      return {};
+    }
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+        return {};
+      }
+      return parsed;
+    } catch (error) {
+      return {};
+    }
+  }
+
+  readArrayFromStorage(key) {
+    if (!this.isBrowser()) {
+      return [];
+    }
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  persistObjectToStorage(key, value) {
+    if (!this.isBrowser()) {
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  persistArrayToStorage(key, value) {
+    if (!this.isBrowser()) {
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  // Lecturas del catalogo para paginas y componentes.
   getHomeCategories() {
     return this.homeCategoryKeys
       .map((key) => {
@@ -32,23 +107,45 @@ class CatalogModel {
     return this.categories[key] ?? null;
   }
 
-  getProduct(id) {
-    return this.products[id] ?? null;
+  getCategoryKeys() {
+    return Object.keys(this.categories);
   }
 
-  getAllProducts() {
-    return Object.entries(this.products).map(([id, product]) => ({ id, product }));
+  getRawProduct(id) {
+    const key = String(id);
+    return this.customProducts[key] ?? this.products[key] ?? null;
   }
 
-  getCategoryProducts(categoryKey) {
-    const category = this.getCategory(categoryKey);
-    if (!category) {
-      return [];
+  getProduct(id, { includeHidden = false } = {}) {
+    const key = String(id);
+    const rawProduct = this.getRawProduct(key);
+    if (!rawProduct) {
+      return null;
     }
 
-    return category.products
+    const hidden = this.hiddenProductIds.has(key);
+    if (hidden && !includeHidden) {
+      return null;
+    }
+
+    return {
+      ...rawProduct,
+      title: this.productOverrides[key] ?? rawProduct.title,
+      _isHidden: hidden,
+      _isCustom: Boolean(this.customProducts[key]),
+    };
+  }
+
+  getMergedProductIds() {
+    const baseIds = Object.keys(this.products);
+    const customIds = Object.keys(this.customProducts);
+    return [...new Set([...baseIds, ...customIds])];
+  }
+
+  getAllProducts({ includeHidden = false } = {}) {
+    return this.getMergedProductIds()
       .map((id) => {
-        const product = this.getProduct(id);
+        const product = this.getProduct(id, { includeHidden });
         if (!product) {
           return null;
         }
@@ -57,6 +154,158 @@ class CatalogModel {
       .filter(Boolean);
   }
 
+  getCategoryProducts(categoryKey, { includeHidden = false } = {}) {
+    const category = this.getCategory(categoryKey);
+    if (!category) {
+      return [];
+    }
+
+    const baseProducts = Array.isArray(category.products) ? category.products : [];
+    const customProducts = Array.isArray(this.customCategoryProducts[categoryKey])
+      ? this.customCategoryProducts[categoryKey]
+      : [];
+
+    return [...new Set([...baseProducts, ...customProducts])]
+      .map((id) => {
+        const product = this.getProduct(id, { includeHidden });
+        if (!product) {
+          return null;
+        }
+        return { id, product };
+      })
+      .filter(Boolean);
+  }
+
+  getProductCategories(productId) {
+    const id = String(productId);
+    const categories = [];
+
+    Object.keys(this.categories).forEach((categoryKey) => {
+      const category = this.categories[categoryKey];
+      if (Array.isArray(category?.products) && category.products.includes(id)) {
+        categories.push(categoryKey);
+      }
+    });
+
+    Object.keys(this.customCategoryProducts).forEach((categoryKey) => {
+      const ids = this.customCategoryProducts[categoryKey];
+      if (Array.isArray(ids) && ids.includes(id) && !categories.includes(categoryKey)) {
+        categories.push(categoryKey);
+      }
+    });
+
+    return categories;
+  }
+
+  getAdminProducts() {
+    return this.getMergedProductIds()
+      .map((id) => {
+        const product = this.getProduct(id, { includeHidden: true });
+        if (!product) {
+          return null;
+        }
+        return {
+          id,
+          product,
+          categories: this.getProductCategories(id),
+        };
+      })
+      .filter(Boolean);
+  }
+
+  // Operaciones CRUD visual usadas por el panel de super usuario.
+  generateProductId(title) {
+    const normalized = String(title || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const baseId = normalized || 'producto';
+    let candidate = baseId;
+    let counter = 1;
+    while (this.getRawProduct(candidate)) {
+      counter += 1;
+      candidate = `${baseId}-${counter}`;
+    }
+    return candidate;
+  }
+
+  adminCreateProduct({ title, price, img, imgHover = '', categoryKey }) {
+    const safeTitle = String(title || '').trim();
+    const safeImg = String(img || '').trim();
+    const safeImgHover = String(imgHover || '').trim();
+    const safeCategory = String(categoryKey || '').trim();
+    const numericPrice = Number.parseFloat(price);
+
+    if (!safeTitle || !safeImg || !safeCategory || Number.isNaN(numericPrice)) {
+      return { ok: false, error: 'Completa nombre, precio, imagen y categoria.' };
+    }
+    if (!this.getCategory(safeCategory)) {
+      return { ok: false, error: 'Categoria invalida.' };
+    }
+
+    const id = this.generateProductId(safeTitle);
+    this.customProducts[id] = {
+      title: safeTitle,
+      price: numericPrice,
+      img: safeImg,
+      ...(safeImgHover ? { imgHover: safeImgHover } : {}),
+    };
+
+    const existingCategoryProducts = Array.isArray(this.customCategoryProducts[safeCategory])
+      ? this.customCategoryProducts[safeCategory]
+      : [];
+    this.customCategoryProducts[safeCategory] = [...new Set([...existingCategoryProducts, id])];
+
+    this.persistObjectToStorage(this.customProductsStorageKey, this.customProducts);
+    this.persistObjectToStorage(this.customCategoryProductsStorageKey, this.customCategoryProducts);
+
+    return { ok: true, id };
+  }
+
+  adminUpdateProductVisualName({ id, title }) {
+    const key = String(id);
+    const rawProduct = this.getRawProduct(key);
+    if (!rawProduct) {
+      return { ok: false, error: 'Producto no encontrado.' };
+    }
+
+    const nextTitle = String(title || '').trim();
+    if (!nextTitle) {
+      return { ok: false, error: 'El nombre visual es obligatorio.' };
+    }
+
+    const originalTitle = String(rawProduct.title || '').trim();
+    if (nextTitle === originalTitle) {
+      delete this.productOverrides[key];
+    } else {
+      this.productOverrides[key] = nextTitle;
+    }
+
+    this.persistObjectToStorage(this.productOverridesStorageKey, this.productOverrides);
+    return { ok: true };
+  }
+
+  adminHideProduct(id) {
+    const key = String(id);
+    if (!this.getRawProduct(key)) {
+      return { ok: false, error: 'Producto no encontrado.' };
+    }
+    this.hiddenProductIds.add(key);
+    this.persistArrayToStorage(this.hiddenProductsStorageKey, Array.from(this.hiddenProductIds));
+    return { ok: true };
+  }
+
+  adminRestoreProduct(id) {
+    const key = String(id);
+    this.hiddenProductIds.delete(key);
+    this.persistArrayToStorage(this.hiddenProductsStorageKey, Array.from(this.hiddenProductIds));
+    return { ok: true };
+  }
+
+  // Metadatos auxiliares de UI.
   getCategoryInfoTabs(category) {
     return this.defaultCategoryTabs.map((tab) => ({
       id: tab.id,
@@ -81,6 +330,7 @@ class CatalogModel {
   }
 }
 
+/** Normaliza rutas de imagen para que siempre sean renderizables por el frontend. */
 class ImageManager {
   constructor(fallbackImage) {
     this.fallbackImage = fallbackImage;
@@ -103,6 +353,7 @@ class ImageManager {
   }
 }
 
+/** Formateador central de moneda para consistencia visual. */
 class CurrencyManager {
   formatMXN(value) {
     const safeValue = Number.isFinite(value) ? value : 0;
@@ -110,6 +361,7 @@ class CurrencyManager {
   }
 }
 
+/** Router hash minimalista (sin libreria externa). */
 class RouteManager {
   parseHash(hashValue) {
     const value = (hashValue || '').replace(/^#\/?/, '');
@@ -146,6 +398,7 @@ class RouteManager {
   }
 }
 
+/** Carrito en localStorage con patron de suscripcion para reactividad. */
 class CartManager {
   constructor({ storageKey = 'hunnab_cart' } = {}) {
     this.storageKey = storageKey;
@@ -189,6 +442,7 @@ class CartManager {
     this.listeners.forEach((listener) => listener());
   }
 
+  // Normaliza y valida cada item antes de persistir.
   normalizeItem(item) {
     if (!item || !item.productId) {
       return null;
@@ -281,6 +535,7 @@ class CartManager {
     this.emit();
   }
 
+  // Enriquece el carrito con datos de catalogo para render.
   getDetailedItems(catalogModel, imageManager) {
     return this.items
       .map((item) => {
@@ -302,6 +557,7 @@ class CartManager {
   }
 }
 
+/** Historial simple de pedidos generado desde el carrito y guardado en localStorage. */
 class OrderManager {
   constructor({ storageKey = 'hunnab_orders' } = {}) {
     this.storageKey = storageKey;
@@ -389,6 +645,7 @@ class OrderManager {
   }
 }
 
+/** Buscador local sobre rutas/categorias del catalogo. */
 class SearchManager {
   constructor(catalogModel) {
     this.catalogModel = catalogModel;
@@ -406,6 +663,10 @@ class SearchManager {
   }
 }
 
+/**
+ * Cliente de autenticacion del frontend.
+ * Mantiene sesion en localStorage y conversa con la API (`/api/auth/*`).
+ */
 class AuthManager {
   constructor({
     apiBase = process.env.REACT_APP_API_BASE || '',
@@ -428,6 +689,7 @@ class AuthManager {
     return `${this.apiBase}${path}`;
   }
 
+  // Estado de sesion persistido localmente.
   readSessionUser() {
     if (!this.isBrowser()) {
       return null;
@@ -446,6 +708,7 @@ class AuthManager {
         id: parsed.id ? Number(parsed.id) : null,
         nombre: parsed.nombre ? String(parsed.nombre) : String(parsed.usuario),
         usuario: String(parsed.usuario),
+        tipoUsuario: parsed.tipoUsuario ? String(parsed.tipoUsuario) : 'CUENTA',
       };
     } catch (error) {
       return null;
@@ -478,6 +741,7 @@ class AuthManager {
     window.localStorage.removeItem(this.sessionUserStorageKey);
   }
 
+  // Operaciones remotas de autenticacion.
   async register({ nombre, correo, usuario, password }) {
     const normalizedUser = String(usuario || '').trim();
     const normalizedEmail = String(correo || '').trim();
@@ -541,6 +805,7 @@ class AuthManager {
         id: data.user.id ?? null,
         nombre: data.user.nombre ?? data.user.usuario,
         usuario: data.user.usuario,
+        tipoUsuario: data.user.tipoUsuario ?? 'CUENTA',
       };
       this.writeSessionUser(sessionUser);
       this.setSessionActive(true);
@@ -562,6 +827,7 @@ class AuthManager {
   }
 }
 
+/** Ensambla todos los modelos/servicios en un contenedor unico de aplicacion. */
 class ApplicationMain {
   buildCatalogModel() {
     return new CatalogModel({
@@ -601,6 +867,7 @@ class ApplicationMain {
     return new AuthManager();
   }
 
+  // Punto de composicion principal.
   run() {
     const catalogModel = this.buildCatalogModel();
     const imageManager = this.buildImageManager();
@@ -624,6 +891,7 @@ class ApplicationMain {
   }
 }
 
+/** Factory publica usada por `src/App.js`. */
 export function main() {
   const appMain = new ApplicationMain();
   return appMain.run();

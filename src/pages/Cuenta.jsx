@@ -2,9 +2,17 @@ import { useMemo, useState } from 'react';
 
 const REGEX_PASSWORD = /^(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,10}$/;
 
-/** Login/registro con persistencia en localStorage via app.auth. */
+/**
+ * Vista de cuenta:
+ * - Login y registro contra API
+ * - Sesion activa
+ * - Resumen de pedidos del usuario
+ * - Panel admin para CRUD visual de productos
+ */
 function AccountPage({ app }) {
   const auth = useMemo(() => app?.auth ?? null, [app]);
+
+  // Estado de autenticacion y formulario.
   const [modoRegistro, setModoRegistro] = useState(false);
   const [mostrarPass, setMostrarPass] = useState(false);
   const [form, setForm] = useState({
@@ -17,10 +25,20 @@ function AccountPage({ app }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [usuarioActivo, setUsuarioActivo] = useState(() => auth?.getSessionUser() ?? null);
 
-  if (!auth) {
-    return null;
-  }
+  // Estado exclusivo del panel super usuario.
+  const [, setAdminRefreshKey] = useState(0);
+  const [adminError, setAdminError] = useState('');
+  const [adminSuccess, setAdminSuccess] = useState('');
+  const [createProductForm, setCreateProductForm] = useState({
+    title: '',
+    price: '',
+    img: '',
+    imgHover: '',
+    categoryKey: 'collares',
+  });
+  const [renameDrafts, setRenameDrafts] = useState({});
 
+  // Handlers de formulario (login/registro).
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
     if (error) {
@@ -77,12 +95,27 @@ function AccountPage({ app }) {
     setModoRegistro(false);
     setMostrarPass(false);
     setError('');
+    setAdminError('');
+    setAdminSuccess('');
+    setRenameDrafts({});
     setForm({ nombre: '', correo: '', usuario: '', password: '' });
   };
 
+  // Datos derivados para renderizado.
   const nombreUsuario = (usuarioActivo?.nombre || usuarioActivo?.usuario || '').trim();
   const pedidosUsuario = usuarioActivo ? app.orders?.getUserOrders?.(usuarioActivo) ?? [] : [];
+  const normalizedRole = String(usuarioActivo?.tipoUsuario || usuarioActivo?.tipo_usuario || '')
+    .trim()
+    .toUpperCase();
+  const isSuperUser = normalizedRole === 'ADMIN' || normalizedRole === 'ADMINISTRADOR';
+  const adminProducts = isSuperUser ? app.catalog?.getAdminProducts?.() ?? [] : [];
+  const adminCategoryKeys = useMemo(() => app.catalog?.getCategoryKeys?.() ?? [], [app]);
 
+  if (!auth) {
+    return null;
+  }
+
+  // Utilidades de visualizacion.
   const formatOrderDate = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
@@ -91,6 +124,84 @@ function AccountPage({ app }) {
     return date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
   };
 
+  const refreshAdminPanel = () => setAdminRefreshKey((prev) => prev + 1);
+
+  // Helpers para mensajes del panel admin.
+  const clearAdminMessages = () => {
+    if (adminError) {
+      setAdminError('');
+    }
+    if (adminSuccess) {
+      setAdminSuccess('');
+    }
+  };
+
+  const onCreateProductFieldChange = (field) => (event) => {
+    clearAdminMessages();
+    setCreateProductForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  // Acciones CRUD visuales desde panel admin.
+  const createProductFromAdmin = (event) => {
+    event.preventDefault();
+    clearAdminMessages();
+    const result = app.catalog?.adminCreateProduct?.(createProductForm);
+    if (!result?.ok) {
+      setAdminError(result?.error || 'No se pudo crear el producto.');
+      return;
+    }
+
+    setAdminSuccess(`Producto creado: ${result.id}`);
+    setCreateProductForm((prev) => ({
+      ...prev,
+      title: '',
+      price: '',
+      img: '',
+      imgHover: '',
+    }));
+    refreshAdminPanel();
+  };
+
+  const onRenameDraftChange = (productId, value) => {
+    clearAdminMessages();
+    setRenameDrafts((prev) => ({ ...prev, [productId]: value }));
+  };
+
+  const saveVisualName = (productId, fallbackName) => {
+    clearAdminMessages();
+    const nextTitle = String(renameDrafts[productId] ?? fallbackName ?? '').trim();
+    const result = app.catalog?.adminUpdateProductVisualName?.({ id: productId, title: nextTitle });
+    if (!result?.ok) {
+      setAdminError(result?.error || 'No se pudo actualizar el nombre visual.');
+      return;
+    }
+    setAdminSuccess('Nombre visual actualizado.');
+    refreshAdminPanel();
+  };
+
+  const hideProductFromAdmin = (productId) => {
+    clearAdminMessages();
+    const result = app.catalog?.adminHideProduct?.(productId);
+    if (!result?.ok) {
+      setAdminError(result?.error || 'No se pudo ocultar el producto.');
+      return;
+    }
+    setAdminSuccess('Producto ocultado.');
+    refreshAdminPanel();
+  };
+
+  const restoreProductFromAdmin = (productId) => {
+    clearAdminMessages();
+    const result = app.catalog?.adminRestoreProduct?.(productId);
+    if (!result?.ok) {
+      setAdminError(result?.error || 'No se pudo restaurar el producto.');
+      return;
+    }
+    setAdminSuccess('Producto restaurado.');
+    refreshAdminPanel();
+  };
+
+  // Render principal de la cuenta.
   return (
     <section className="auth-page">
       <div className="inicio-sesion">
@@ -205,6 +316,108 @@ function AccountPage({ app }) {
                 </div>
               )}
             </section>
+
+            {isSuperUser && (
+              <section className="admin-productos-panel" aria-label="Panel super usuario">
+                <h3>Panel Super Usuario (CRUD Productos)</h3>
+
+                <form className="admin-create-form" onSubmit={createProductFromAdmin}>
+                  <label htmlFor="admin-product-title">Nombre del producto</label>
+                  <input
+                    id="admin-product-title"
+                    type="text"
+                    value={createProductForm.title}
+                    onChange={onCreateProductFieldChange('title')}
+                    required
+                  />
+
+                  <label htmlFor="admin-product-price">Precio</label>
+                  <input
+                    id="admin-product-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={createProductForm.price}
+                    onChange={onCreateProductFieldChange('price')}
+                    required
+                  />
+
+                  <label htmlFor="admin-product-image">Imagen principal (ruta)</label>
+                  <input
+                    id="admin-product-image"
+                    type="text"
+                    value={createProductForm.img}
+                    onChange={onCreateProductFieldChange('img')}
+                    placeholder="imagenes/mi_producto.jpg"
+                    required
+                  />
+
+                  <label htmlFor="admin-product-image-hover">Imagen hover (opcional)</label>
+                  <input
+                    id="admin-product-image-hover"
+                    type="text"
+                    value={createProductForm.imgHover}
+                    onChange={onCreateProductFieldChange('imgHover')}
+                    placeholder="imagenes/mi_producto_hover.jpg"
+                  />
+
+                  <label htmlFor="admin-product-category">Categoria</label>
+                  <select
+                    id="admin-product-category"
+                    value={createProductForm.categoryKey}
+                    onChange={onCreateProductFieldChange('categoryKey')}
+                  >
+                    {adminCategoryKeys.map((categoryKey) => (
+                      <option key={categoryKey} value={categoryKey}>
+                        {categoryKey}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button type="submit">Crear producto</button>
+                </form>
+
+                {adminError ? <p className="admin-msg admin-msg--error">{adminError}</p> : null}
+                {adminSuccess ? <p className="admin-msg admin-msg--ok">{adminSuccess}</p> : null}
+
+                <div className="admin-products-list">
+                  {adminProducts.map(({ id, product, categories }) => (
+                    <article key={id} className="admin-product-card">
+                      <div className="admin-product-card__top">
+                        <strong>{product.title}</strong>
+                        <span>{product._isHidden ? 'Oculto' : 'Visible'}</span>
+                      </div>
+                      <p>{`ID: ${id}`}</p>
+                      <p>{`Precio: ${app.currency.formatMXN(product.price)}`}</p>
+                      <p>{`Categorias: ${categories.length ? categories.join(', ') : 'Sin categoria'}`}</p>
+
+                      <div className="admin-rename-box">
+                        <input
+                          type="text"
+                          value={renameDrafts[id] ?? product.title}
+                          onChange={(event) => onRenameDraftChange(id, event.target.value)}
+                        />
+                        <button type="button" onClick={() => saveVisualName(id, product.title)}>
+                          Guardar nombre visual
+                        </button>
+                      </div>
+
+                      <div className="admin-actions">
+                        {product._isHidden ? (
+                          <button type="button" onClick={() => restoreProductFromAdmin(id)}>
+                            Mostrar producto
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => hideProductFromAdmin(id)}>
+                            Ocultar producto
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <button type="button" onClick={cerrarSesion}>
               Cerrar Sesion

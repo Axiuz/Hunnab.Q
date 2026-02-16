@@ -11,7 +11,7 @@ const APP = main();
 
 /** Componente raiz de UI: coordina ruta, overlays, busqueda y layout global. */
 function App() {
-  // Estado de interfaz
+  // Estado de interfaz (navegacion + overlays + drawer movil)
   const [route, setRoute] = useState(() => APP.router.getCurrentRoute());
   const [cartCount, setCartCount] = useState(() => APP.cart.getCount());
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -28,7 +28,7 @@ function App() {
     setSearchOpen(false);
   }, []);
 
-  // Efectos (router, teclado, clases globales, carrito)
+  // Efectos globales (router, teclado, body classes, contador de carrito)
   useEffect(() => {
     const handleHashChange = () => {
       setRoute(APP.router.getCurrentRoute());
