@@ -89,32 +89,36 @@
     }
     /* Carrusel principal */
 .carousel{
-  max-width: 760px;
+  max-width: 680px;
   margin: 12px auto 20px;
   padding: 0 16px;
 }
 
 .carousel__viewport{
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 0;
+  border-radius: 14px;
   overflow: hidden;
-  background: #fff;
+  background: #f3f1ea;
 }
 
 .carousel__track{
   display: flex;
   transition: transform 450ms ease;
   will-change: transform;
+  gap: 0;
 }
 
 .carousel__slide{
   flex: 0 0 100%;
+  min-width: 100%;
+  margin: 0;
 }
 
 .carousel__slide img{
   width: 100%;
-  height: 190px;
+  height: 180px;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -631,6 +635,153 @@
       font-size:24px;
       color:#5e3f2d;
     }
+    .cuenta-submenu{
+      width:100%;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .inicio-sesion button.cuenta-submenu__btn{
+      border:1px solid #c9c4b8;
+      background:#fff;
+      color:#5e3f2d;
+      border-radius:999px;
+      padding:8px 14px;
+      font-size:13px;
+      font-weight:700;
+    }
+    .inicio-sesion button.cuenta-submenu__btn.is-active{
+      background:#5e3f2d;
+      color:#fff;
+      border-color:#5e3f2d;
+    }
+    .cuenta-config-panel{
+      width:100%;
+      text-align:left;
+      border:1px solid #bdb9ad;
+      border-radius:12px;
+      padding:12px;
+      background:#f3f1ea;
+      display:grid;
+      gap:10px;
+    }
+    .cuenta-config-panel h3{
+      margin:0;
+      font-size:18px;
+      color:#5e3f2d;
+    }
+    .cuenta-config-form{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:10px 12px;
+      align-items:end;
+    }
+    .cuenta-field{
+      display:grid;
+      gap:6px;
+    }
+    .cuenta-field--wide{
+      grid-column:1 / -1;
+    }
+    .cuenta-field label{
+      margin:0;
+      font-size:12px;
+      font-weight:700;
+      color:#5e3f2d;
+      text-align:left;
+      width:100%;
+    }
+    .cuenta-field input,
+    .cuenta-field select,
+    .cuenta-field textarea{
+      width:100%;
+      border:1px solid #b6b1a5;
+      border-radius:10px;
+      background:#fff;
+      padding:10px;
+      font-size:13px;
+      outline:none;
+      resize:vertical;
+    }
+    .cuenta-form-actions{
+      display:flex;
+      justify-content:flex-end;
+      align-items:flex-end;
+    }
+    .cuenta-msg{
+      margin:0;
+      font-size:13px;
+      line-height:1.4;
+    }
+    .cuenta-msg--error{color:#b00020}
+    .cuenta-msg--ok{color:#2f6b3a}
+    .metodos-pago-panel{
+      border-top:1px solid #d4d0c3;
+      padding-top:10px;
+      display:grid;
+      gap:10px;
+    }
+    .metodos-pago-panel h4{
+      margin:0;
+      font-size:16px;
+      color:#5e3f2d;
+    }
+    .metodo-pago-empty{
+      margin:0;
+      font-size:13px;
+      color:#5d3f2d;
+    }
+    .metodos-pago-list{
+      display:grid;
+      gap:10px;
+    }
+    .metodo-pago-card{
+      border:1px solid #c9c4b8;
+      border-radius:10px;
+      background:#fff;
+      padding:10px;
+      display:grid;
+      gap:6px;
+    }
+    .metodo-pago-card__top{
+      display:flex;
+      justify-content:space-between;
+      gap:8px;
+      align-items:center;
+    }
+    .metodo-pago-card__top strong{
+      font-size:14px;
+      color:#5e3f2d;
+    }
+    .metodo-pago-card__top span{
+      font-size:12px;
+      color:#5d3f2d;
+      font-weight:700;
+    }
+    .metodo-pago-card p{
+      margin:0;
+      font-size:12px;
+      color:#4a4a4a;
+    }
+    .inicio-sesion button.metodo-remove-btn{
+      justify-self:start;
+      border:1px solid #d5cec0;
+      background:#fff;
+      color:#7f1d1d;
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:12px;
+      font-weight:700;
+    }
+    .inicio-sesion button.metodo-remove-btn:hover{
+      background:#fff5f5;
+    }
+    .metodo-pago-form{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:10px 12px;
+      align-items:end;
+    }
     .pedidos-panel{
       width:100%;
       text-align:left;
@@ -783,6 +934,12 @@
       font-size:12px;
       color:#4a4a4a;
     }
+    .admin-edit-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:10px 12px;
+      align-items:end;
+    }
     .admin-product-card__top{
       display:flex;
       justify-content:space-between;
@@ -797,17 +954,29 @@
       font-weight:700;
       color:#5e3f2d;
     }
-    .admin-rename-box{
+    .admin-categories-grid{
       display:grid;
-      grid-template-columns:1fr;
+      grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
       gap:8px;
     }
-    .admin-rename-box input{
-      border:1px solid #b6b1a5;
-      border-radius:10px;
+    .admin-category-option{
+      display:flex;
+      align-items:center;
+      gap:8px;
       padding:8px 10px;
+      border:1px solid #d1ccbf;
+      border-radius:10px;
+      background:#fff;
       font-size:12px;
-      outline:none;
+      color:#5e3f2d;
+      margin:0;
+      width:100%;
+      text-transform:none;
+      font-weight:600;
+    }
+    .admin-category-option input{
+      width:auto;
+      margin:0;
     }
     .admin-actions{
       display:flex;
@@ -828,12 +997,37 @@
       .inicio-sesion__form input[type="email"],
       .inicio-sesion__form input[type="password"],
       .password-help,
+      .cuenta-field input,
+      .cuenta-field select,
+      .cuenta-field textarea,
       .admin-create-form input,
       .admin-create-form select,
       .inicio-sesion .show-pass{
         width:100%;
       }
+      .cuenta-submenu{
+        flex-direction:column;
+      }
+      .inicio-sesion button.cuenta-submenu__btn{
+        width:100%;
+      }
+      .cuenta-config-form,
+      .metodo-pago-form{
+        grid-template-columns:1fr;
+      }
+      .cuenta-field--wide{
+        grid-column:auto;
+      }
+      .cuenta-form-actions{
+        justify-content:flex-start;
+      }
+      .cuenta-form-actions .admin-btn{
+        width:100%;
+      }
       .admin-create-form{
+        grid-template-columns:1fr;
+      }
+      .admin-edit-grid{
         grid-template-columns:1fr;
       }
       .admin-field--wide{
@@ -1014,14 +1208,19 @@
   opacity:0; /* convierte + en − */
 }
 
-/* Panel animado */
+/* Panel animado (sin altura fija para evitar recortes de texto) */
 .accordion-panel{
-  overflow:hidden;
-  max-height:0;
-  transition:max-height .35s ease;
+  display:grid;
+  grid-template-rows:0fr;
+  transition:grid-template-rows .32s ease;
+}
+
+.accordion-panel.is-open{
+  grid-template-rows:1fr;
 }
 
 .accordion-panel-inner{
+  overflow:hidden;
   padding:0 6px 14px;
   font-size:13px;
   line-height:1.6;

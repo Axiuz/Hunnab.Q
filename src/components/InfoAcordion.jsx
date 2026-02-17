@@ -18,15 +18,16 @@ function InfoAccordion({ app, category }) {
               type="button"
               data-accordion={tab.id}
               aria-expanded={expanded ? 'true' : 'false'}
+              aria-controls={`accordion-panel-${tab.id}`}
               onClick={() => setOpenId(expanded ? null : tab.id)}
             >
               <span>{tab.label}</span>
               <span className="accordion-icon" aria-hidden="true" />
             </button>
             <div
-              className="accordion-panel"
+              id={`accordion-panel-${tab.id}`}
+              className={`accordion-panel ${expanded ? 'is-open' : ''}`}
               data-panel={tab.id}
-              style={{ maxHeight: expanded ? '220px' : '0px' }}
             >
               <div className="accordion-panel-inner">
                 <p>{tab.content}</p>

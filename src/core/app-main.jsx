@@ -26,11 +26,13 @@ class CatalogModel {
     this.hiddenProductsStorageKey = 'hunnab_hidden_products';
     this.customProductsStorageKey = 'hunnab_custom_products';
     this.customCategoryProductsStorageKey = 'hunnab_custom_category_products';
+    this.categoryAssignmentsStorageKey = 'hunnab_product_category_assignments';
 
     this.productOverrides = this.readObjectFromStorage(this.productOverridesStorageKey);
     this.hiddenProductIds = new Set(this.readArrayFromStorage(this.hiddenProductsStorageKey));
     this.customProducts = this.readObjectFromStorage(this.customProductsStorageKey);
     this.customCategoryProducts = this.readObjectFromStorage(this.customCategoryProductsStorageKey);
+    this.categoryAssignments = this.readObjectFromStorage(this.categoryAssignmentsStorageKey);
   }
 
   // Storage helpers.
@@ -128,9 +130,17 @@ class CatalogModel {
       return null;
     }
 
+    const override = this.productOverrides[key];
+    const normalizedOverride =
+      override && !Array.isArray(override) && typeof override === 'object'
+        ? override
+        : typeof override === 'string'
+          ? { title: override }
+          : {};
+
     return {
       ...rawProduct,
-      title: this.productOverrides[key] ?? rawProduct.title,
+      ...normalizedOverride,
       _isHidden: hidden,
       _isCustom: Boolean(this.customProducts[key]),
     };
@@ -160,13 +170,12 @@ class CatalogModel {
       return [];
     }
 
-    const baseProducts = Array.isArray(category.products) ? category.products : [];
-    const customProducts = Array.isArray(this.customCategoryProducts[categoryKey])
-      ? this.customCategoryProducts[categoryKey]
-      : [];
-
-    return [...new Set([...baseProducts, ...customProducts])]
+    return this.getMergedProductIds()
       .map((id) => {
+        const categories = this.getProductCategories(id);
+        if (!categories.includes(categoryKey)) {
+          return null;
+        }
         const product = this.getProduct(id, { includeHidden });
         if (!product) {
           return null;
@@ -176,7 +185,7 @@ class CatalogModel {
       .filter(Boolean);
   }
 
-  getProductCategories(productId) {
+  getDefaultProductCategories(productId) {
     const id = String(productId);
     const categories = [];
 
@@ -195,6 +204,30 @@ class CatalogModel {
     });
 
     return categories;
+  }
+
+  normalizeCategoryList(value) {
+    const validCategorySet = new Set(this.getCategoryKeys());
+    const source = Array.isArray(value) ? value : [];
+    return [...new Set(source.map((item) => String(item || '').trim()).filter((item) => validCategorySet.has(item)))];
+  }
+
+  areCategoryListsEqual(first, second) {
+    const left = this.normalizeCategoryList(first).sort();
+    const right = this.normalizeCategoryList(second).sort();
+    if (left.length !== right.length) {
+      return false;
+    }
+    return left.every((value, idx) => value === right[idx]);
+  }
+
+  getProductCategories(productId) {
+    const key = String(productId);
+    const assignedCategories = this.normalizeCategoryList(this.categoryAssignments[key]);
+    if (assignedCategories.length > 0) {
+      return assignedCategories;
+    }
+    return this.getDefaultProductCategories(key);
   }
 
   getAdminProducts() {
@@ -258,9 +291,11 @@ class CatalogModel {
       ? this.customCategoryProducts[safeCategory]
       : [];
     this.customCategoryProducts[safeCategory] = [...new Set([...existingCategoryProducts, id])];
+    this.categoryAssignments[id] = [safeCategory];
 
     this.persistObjectToStorage(this.customProductsStorageKey, this.customProducts);
     this.persistObjectToStorage(this.customCategoryProductsStorageKey, this.customCategoryProducts);
+    this.persistObjectToStorage(this.categoryAssignmentsStorageKey, this.categoryAssignments);
 
     return { ok: true, id };
   }
@@ -277,14 +312,83 @@ class CatalogModel {
       return { ok: false, error: 'El nombre visual es obligatorio.' };
     }
 
-    const originalTitle = String(rawProduct.title || '').trim();
-    if (nextTitle === originalTitle) {
+    const baseTitle = String(rawProduct.title || '').trim();
+    const currentOverride = this.productOverrides[key];
+    const overrideObject =
+      currentOverride && !Array.isArray(currentOverride) && typeof currentOverride === 'object'
+        ? { ...currentOverride }
+        : {};
+
+    if (nextTitle === baseTitle) {
+      delete overrideObject.title;
+    } else {
+      overrideObject.title = nextTitle;
+    }
+
+    if (Object.keys(overrideObject).length === 0) {
       delete this.productOverrides[key];
     } else {
-      this.productOverrides[key] = nextTitle;
+      this.productOverrides[key] = overrideObject;
+    }
+    this.persistObjectToStorage(this.productOverridesStorageKey, this.productOverrides);
+    return { ok: true };
+  }
+
+  adminUpdateProduct({ id, title, price, img, imgHover = '', categories }) {
+    const key = String(id);
+    const rawProduct = this.getRawProduct(key);
+    if (!rawProduct) {
+      return { ok: false, error: 'Producto no encontrado.' };
+    }
+
+    const safeTitle = String(title || '').trim();
+    const safeImg = String(img || '').trim();
+    const safeImgHover = String(imgHover || '').trim();
+    const numericPrice = Number.parseFloat(price);
+    const normalizedCategories = this.normalizeCategoryList(categories);
+
+    if (!safeTitle || !safeImg || Number.isNaN(numericPrice)) {
+      return { ok: false, error: 'Nombre, precio e imagen principal son obligatorios.' };
+    }
+    if (normalizedCategories.length === 0) {
+      return { ok: false, error: 'Selecciona al menos una categoria.' };
+    }
+
+    const baseTitle = String(rawProduct.title || '').trim();
+    const basePrice = Number.isFinite(Number(rawProduct.price)) ? Number(rawProduct.price) : 0;
+    const baseImg = String(rawProduct.img || '').trim();
+    const baseImgHover = String(rawProduct.imgHover || '').trim();
+
+    const nextOverride = {};
+    if (safeTitle !== baseTitle) {
+      nextOverride.title = safeTitle;
+    }
+    if (numericPrice !== basePrice) {
+      nextOverride.price = numericPrice;
+    }
+    if (safeImg !== baseImg) {
+      nextOverride.img = safeImg;
+    }
+    if (safeImgHover !== baseImgHover) {
+      nextOverride.imgHover = safeImgHover;
+    }
+
+    if (Object.keys(nextOverride).length === 0) {
+      delete this.productOverrides[key];
+    } else {
+      this.productOverrides[key] = nextOverride;
+    }
+
+    const defaultCategories = this.getDefaultProductCategories(key);
+    if (this.areCategoryListsEqual(normalizedCategories, defaultCategories)) {
+      delete this.categoryAssignments[key];
+    } else {
+      this.categoryAssignments[key] = normalizedCategories;
     }
 
     this.persistObjectToStorage(this.productOverridesStorageKey, this.productOverrides);
+    this.persistObjectToStorage(this.categoryAssignmentsStorageKey, this.categoryAssignments);
+
     return { ok: true };
   }
 
@@ -672,10 +776,12 @@ class AuthManager {
     apiBase = process.env.REACT_APP_API_BASE || '',
     sessionStorageKey = 'sesionActiva',
     sessionUserStorageKey = 'usuarioSesion',
+    accountSettingsStorageKey = 'hunnab_account_settings',
   } = {}) {
     this.apiBase = apiBase;
     this.sessionStorageKey = sessionStorageKey;
     this.sessionUserStorageKey = sessionUserStorageKey;
+    this.accountSettingsStorageKey = accountSettingsStorageKey;
   }
 
   isBrowser() {
@@ -708,6 +814,7 @@ class AuthManager {
       return {
         id: parsed.id ? Number(parsed.id) : null,
         nombre: parsed.nombre ? String(parsed.nombre) : String(parsed.usuario),
+        correo: parsed.correo ? String(parsed.correo) : '',
         usuario: String(parsed.usuario),
         tipoUsuario: parsedRole ? String(parsedRole) : 'CUENTA',
       };
@@ -740,6 +847,193 @@ class AuthManager {
     }
     window.localStorage.removeItem(this.sessionStorageKey);
     window.localStorage.removeItem(this.sessionUserStorageKey);
+  }
+
+  readAccountSettingsStore() {
+    if (!this.isBrowser()) {
+      return {};
+    }
+
+    try {
+      const raw = window.localStorage.getItem(this.accountSettingsStorageKey);
+      if (!raw) {
+        return {};
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+        return {};
+      }
+      return parsed;
+    } catch (error) {
+      return {};
+    }
+  }
+
+  writeAccountSettingsStore(store) {
+    if (!this.isBrowser()) {
+      return;
+    }
+    window.localStorage.setItem(this.accountSettingsStorageKey, JSON.stringify(store));
+  }
+
+  getUserSettingsKey(user) {
+    if (!user) {
+      return '';
+    }
+    if (user.id !== null && user.id !== undefined && `${user.id}`.trim() !== '') {
+      return `id:${String(user.id)}`;
+    }
+    const username = String(user.usuario || '').trim().toLowerCase();
+    if (!username) {
+      return '';
+    }
+    return `user:${username}`;
+  }
+
+  normalizePaymentMethod(method) {
+    if (!method || typeof method !== 'object') {
+      return null;
+    }
+
+    const type = String(method.type || 'Tarjeta').trim();
+    const alias = String(method.alias || '').trim();
+    const holder = String(method.holder || '').trim();
+    const last4Raw = String(method.last4 || '').trim();
+    const expiry = String(method.expiry || '').trim();
+    const digitsOnly = last4Raw.replace(/\D/g, '');
+    const last4 = digitsOnly.slice(-4);
+
+    if (!alias || !holder || last4.length !== 4 || !expiry) {
+      return null;
+    }
+
+    return {
+      id: String(method.id || `pm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+      type,
+      alias,
+      holder,
+      last4,
+      expiry,
+    };
+  }
+
+  getAccountSettings(user) {
+    const key = this.getUserSettingsKey(user);
+    const defaultSettings = {
+      nombre: String(user?.nombre || user?.usuario || '').trim(),
+      correo: String(user?.correo || '').trim(),
+      direccionEnvio: '',
+      paymentMethods: [],
+    };
+
+    if (!key) {
+      return defaultSettings;
+    }
+
+    const store = this.readAccountSettingsStore();
+    const entry = store[key];
+    if (!entry || typeof entry !== 'object') {
+      return defaultSettings;
+    }
+
+    const methods = Array.isArray(entry.paymentMethods)
+      ? entry.paymentMethods.map((method) => this.normalizePaymentMethod(method)).filter(Boolean)
+      : [];
+
+    return {
+      nombre: String(entry.nombre || defaultSettings.nombre).trim(),
+      correo: String(entry.correo || defaultSettings.correo).trim(),
+      direccionEnvio: String(entry.direccionEnvio || '').trim(),
+      paymentMethods: methods,
+    };
+  }
+
+  saveAccountSettings(user, { nombre, correo, direccionEnvio }) {
+    const key = this.getUserSettingsKey(user);
+    if (!key) {
+      return { ok: false, error: 'No hay sesion activa para guardar datos.' };
+    }
+
+    const safeName = String(nombre || '').trim();
+    const safeEmail = String(correo || '').trim().toLowerCase();
+    const safeAddress = String(direccionEnvio || '').trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!safeName || !safeEmail) {
+      return { ok: false, error: 'Nombre y correo son obligatorios.' };
+    }
+    if (!emailPattern.test(safeEmail)) {
+      return { ok: false, error: 'Ingresa un correo electronico valido.' };
+    }
+
+    const store = this.readAccountSettingsStore();
+    const current = this.getAccountSettings(user);
+    const nextSettings = {
+      ...current,
+      nombre: safeName,
+      correo: safeEmail,
+      direccionEnvio: safeAddress,
+    };
+
+    store[key] = nextSettings;
+    this.writeAccountSettingsStore(store);
+
+    const sessionUser = this.getSessionUser();
+    if (this.getUserSettingsKey(sessionUser) === key && sessionUser) {
+      const nextSessionUser = {
+        ...sessionUser,
+        nombre: safeName,
+        correo: safeEmail,
+      };
+      this.writeSessionUser(nextSessionUser);
+      return { ok: true, settings: nextSettings, user: nextSessionUser };
+    }
+
+    return { ok: true, settings: nextSettings, user: null };
+  }
+
+  addPaymentMethod(user, methodPayload) {
+    const key = this.getUserSettingsKey(user);
+    if (!key) {
+      return { ok: false, error: 'No hay sesion activa para guardar metodos de pago.' };
+    }
+
+    const normalized = this.normalizePaymentMethod(methodPayload);
+    if (!normalized) {
+      return {
+        ok: false,
+        error: 'Completa alias, titular, ultimos 4 digitos y fecha de expiracion.',
+      };
+    }
+
+    const store = this.readAccountSettingsStore();
+    const current = this.getAccountSettings(user);
+    const nextMethods = [normalized, ...current.paymentMethods];
+    store[key] = {
+      ...current,
+      paymentMethods: nextMethods,
+    };
+    this.writeAccountSettingsStore(store);
+
+    return { ok: true, paymentMethods: nextMethods };
+  }
+
+  removePaymentMethod(user, methodId) {
+    const key = this.getUserSettingsKey(user);
+    if (!key) {
+      return { ok: false, error: 'No hay sesion activa para eliminar metodos.' };
+    }
+
+    const store = this.readAccountSettingsStore();
+    const current = this.getAccountSettings(user);
+    const nextMethods = current.paymentMethods.filter((method) => method.id !== String(methodId));
+    store[key] = {
+      ...current,
+      paymentMethods: nextMethods,
+    };
+    this.writeAccountSettingsStore(store);
+
+    return { ok: true, paymentMethods: nextMethods };
   }
 
   // Operaciones remotas de autenticacion.

@@ -1,19 +1,51 @@
+import { useEffect, useState } from 'react';
+
+const FOOTER_SLIDES = [
+  { src: '/imagenes/Collar_Arbolvida.jpeg', alt: 'Collar arbol de vida' },
+  { src: '/imagenes/Anillo_Modelo.jpeg', alt: 'Anillo modelo' },
+  { src: '/imagenes/Collar_Libelula.jpeg', alt: 'Collar libelula' },
+];
+
 /** Pie de pagina con carrusel visual y datos de contacto. */
-function Footer({ fallbackImage }) {
+function Footer() {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % FOOTER_SLIDES.length);
+    }, 3200);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   // Render
   return (
     <>
       <section className="carousel" aria-label="Carrusel de imagenes">
-        <div className="carousel__track" id="carouselTrack">
-          <figure className="carousel__slide">
-            <img src="/imagenes/Collar_Arbolvida.jpeg" alt="Imagen 1" />
-          </figure>
-          <figure className="carousel__slide">
-            <img src="/imagenes/Anillo_Modelo.jpeg" alt="Imagen 2" />
-          </figure>
-          <figure className="carousel__slide">
-            <img src="/imagenes/Collar_Libelula.jpeg" alt="Imagen 3" />
-          </figure>
+        <div className="carousel__viewport">
+          <div
+            className="carousel__track"
+            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+          >
+            {FOOTER_SLIDES.map((slide) => (
+              <figure key={slide.src} className="carousel__slide">
+                <img src={slide.src} alt={slide.alt} />
+              </figure>
+            ))}
+          </div>
+        </div>
+        <div className="carousel__dots" role="tablist" aria-label="Seleccion de imagen">
+          {FOOTER_SLIDES.map((slide, idx) => (
+            <button
+              key={slide.src}
+              type="button"
+              role="tab"
+              className={`carousel__dot ${idx === activeIndex ? 'is-active' : ''}`}
+              aria-label={`Ir a imagen ${idx + 1}`}
+              aria-selected={idx === activeIndex ? 'true' : 'false'}
+              onClick={() => setActiveIndex(idx)}
+            />
+          ))}
         </div>
       </section>
 
