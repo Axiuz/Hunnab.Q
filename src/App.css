@@ -518,6 +518,10 @@
       box-shadow:0 10px 25px rgba(0,0,0,.1);
       text-align:center;
     }
+    .inicio-sesion--super{
+      max-width:min(1120px, calc(100vw - 32px));
+      padding:28px 34px;
+    }
     .inicio-sesion__logo{
       width:min(100%, 320px);
       height:80px;
@@ -618,6 +622,10 @@
       justify-items:center;
       width:100%;
     }
+    .inicio-sesion--super .panel-usuario{
+      justify-items:stretch;
+      max-width:100%;
+    }
     .panel-usuario h2{
       margin:6px 0;
       font-size:24px;
@@ -688,8 +696,17 @@
     }
     .admin-create-form{
       display:grid;
-      gap:8px;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:10px 12px;
       margin-bottom:10px;
+      align-items:end;
+    }
+    .admin-field{
+      display:grid;
+      gap:6px;
+    }
+    .admin-field--wide{
+      grid-column:1 / -1;
     }
     .admin-create-form label{
       width:100%;
@@ -709,8 +726,34 @@
       font-size:13px;
       outline:none;
     }
-    .admin-create-form button{
-      justify-self:start;
+    .admin-form-actions{
+      display:flex;
+      justify-content:flex-end;
+      align-items:flex-end;
+    }
+    .inicio-sesion button.admin-btn{
+      border:none;
+      border-radius:10px;
+      padding:10px 14px;
+      font-size:12px;
+      font-weight:700;
+      cursor:pointer;
+      transition:.2s;
+    }
+    .inicio-sesion button.admin-btn--primary{
+      background:#5e3f2d;
+      color:#fff;
+    }
+    .inicio-sesion button.admin-btn--primary:hover{
+      background:#462f23;
+    }
+    .inicio-sesion button.admin-btn--secondary{
+      background:#e8e4d8;
+      color:#5e3f2d;
+      border:1px solid #bcb5a6;
+    }
+    .inicio-sesion button.admin-btn--secondary:hover{
+      background:#dfd9cb;
     }
     .admin-msg{
       margin:6px 0;
@@ -755,12 +798,11 @@
       color:#5e3f2d;
     }
     .admin-rename-box{
-      display:flex;
+      display:grid;
+      grid-template-columns:1fr;
       gap:8px;
-      align-items:center;
     }
     .admin-rename-box input{
-      flex:1;
       border:1px solid #b6b1a5;
       border-radius:10px;
       padding:8px 10px;
@@ -769,11 +811,17 @@
     }
     .admin-actions{
       display:flex;
-      justify-content:flex-start;
+      justify-content:flex-end;
+      gap:8px;
+      flex-wrap:wrap;
     }
     @media (max-width: 480px){
       .inicio-sesion{
         max-width:100%;
+      }
+      .inicio-sesion--super{
+        max-width:100%;
+        padding:22px 18px;
       }
       .inicio-sesion__form label,
       .inicio-sesion__form input[type="text"],
@@ -783,6 +831,24 @@
       .admin-create-form input,
       .admin-create-form select,
       .inicio-sesion .show-pass{
+        width:100%;
+      }
+      .admin-create-form{
+        grid-template-columns:1fr;
+      }
+      .admin-field--wide{
+        grid-column:auto;
+      }
+      .admin-form-actions{
+        justify-content:flex-start;
+      }
+      .admin-form-actions .admin-btn{
+        width:100%;
+      }
+      .admin-actions{
+        justify-content:flex-start;
+      }
+      .admin-actions .admin-btn{
         width:100%;
       }
       .inicio-sesion h1{

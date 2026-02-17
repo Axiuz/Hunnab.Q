@@ -704,11 +704,12 @@ class AuthManager {
       if (!parsed || !parsed.usuario) {
         return null;
       }
+      const parsedRole = parsed.tipoUsuario ?? parsed.tipo_usuario ?? parsed.role ?? '';
       return {
         id: parsed.id ? Number(parsed.id) : null,
         nombre: parsed.nombre ? String(parsed.nombre) : String(parsed.usuario),
         usuario: String(parsed.usuario),
-        tipoUsuario: parsed.tipoUsuario ? String(parsed.tipoUsuario) : 'CUENTA',
+        tipoUsuario: parsedRole ? String(parsedRole) : 'CUENTA',
       };
     } catch (error) {
       return null;
