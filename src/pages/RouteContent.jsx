@@ -1,6 +1,7 @@
 import AboutPage from './QuienesSomos';
 import CategoryPage from './Categorias';
 import CartPage from './Carrito';
+import CheckoutPage from './Checkout';
 import AccountPage from './Cuenta';
 import HomePage from './Home';
 import ProductPage from './Productos';
@@ -22,6 +23,9 @@ function RouteContent({ app, route }) {
   }
   if (route.kind === 'cart') {
     return <CartPage app={app} />;
+  }
+  if (route.kind === 'checkout') {
+    return <CheckoutPage app={app} />;
   }
   if (route.kind === 'account') {
     return <AccountPage app={app} />;

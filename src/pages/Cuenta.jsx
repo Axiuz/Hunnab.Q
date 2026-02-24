@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 
 const REGEX_PASSWORD = /^(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,10}$/;
-const PAYMENT_METHOD_TYPES = ['Tarjeta de credito', 'Tarjeta de debito', 'PayPal', 'Transferencia'];
 const EMPTY_ACCOUNT_FORM = {
   nombre: '',
   correo: '',
   direccionEnvio: '',
 };
-const EMPTY_PAYMENT_METHOD_FORM = {
-  type: PAYMENT_METHOD_TYPES[0],
-  alias: '',
-  holder: '',
-  last4: '',
-  expiry: '',
+const EMPTY_PASSWORD_FORM = {
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
 };
+const ORDER_STATUS_OPTIONS = [
+  { value: 'PENDIENTE', label: 'Pendiente' },
+  { value: 'EN PREPARACION', label: 'En preparacion' },
+  { value: 'ENVIADO', label: 'Enviado' },
+];
 
 /**
  * Vista de cuenta:
@@ -39,10 +41,20 @@ function AccountPage({ app }) {
   const [usuarioActivo, setUsuarioActivo] = useState(() => auth?.getSessionUser() ?? null);
   const [cuentaTab, setCuentaTab] = useState('pedidos');
   const [accountForm, setAccountForm] = useState(EMPTY_ACCOUNT_FORM);
-  const [paymentMethodForm, setPaymentMethodForm] = useState(EMPTY_PAYMENT_METHOD_FORM);
-  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [accountError, setAccountError] = useState('');
   const [accountSuccess, setAccountSuccess] = useState('');
+  const [pedidosUsuario, setPedidosUsuario] = useState([]);
+  const [pedidosAdmin, setPedidosAdmin] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
+  const [ordersSuccess, setOrdersSuccess] = useState('');
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
+  const [orderStatusDrafts, setOrderStatusDrafts] = useState({});
 
   // Estado exclusivo del panel super usuario.
   const [, setAdminRefreshKey] = useState(0);
@@ -51,6 +63,7 @@ function AccountPage({ app }) {
   const [createProductForm, setCreateProductForm] = useState({
     title: '',
     price: '',
+    stock: '10',
     img: '',
     imgHover: '',
     categoryKey: 'collares',
@@ -120,22 +133,157 @@ function AccountPage({ app }) {
     setEditDrafts({});
     setCuentaTab('pedidos');
     setAccountForm(EMPTY_ACCOUNT_FORM);
-    setPaymentMethodForm(EMPTY_PAYMENT_METHOD_FORM);
-    setPaymentMethods([]);
+    setPasswordForm(EMPTY_PASSWORD_FORM);
+    setShowPasswordFields(false);
+    setDeleteAccountPassword('');
+    setShowDeletePassword(false);
+    setIsDeletingAccount(false);
     setAccountError('');
     setAccountSuccess('');
+    setPedidosUsuario([]);
+    setPedidosAdmin([]);
+    setOrdersLoading(false);
+    setOrdersError('');
+    setOrdersSuccess('');
+    setUpdatingOrderId(null);
+    setOrderStatusDrafts({});
     setForm({ nombre: '', correo: '', usuario: '', password: '' });
   };
 
   // Datos derivados para renderizado.
   const nombreUsuario = (usuarioActivo?.nombre || usuarioActivo?.usuario || '').trim();
-  const pedidosUsuario = usuarioActivo ? app.orders?.getUserOrders?.(usuarioActivo) ?? [] : [];
   const normalizedRole = String(usuarioActivo?.tipoUsuario || usuarioActivo?.tipo_usuario || '')
     .trim()
     .toUpperCase();
   const isSuperUser = normalizedRole === 'ADMIN' || normalizedRole === 'ADMINISTRADOR';
+  const ordersForTab = isSuperUser ? pedidosAdmin : pedidosUsuario;
+  const ordersTabLabel = isSuperUser ? 'Pedidos' : 'Mis pedidos';
+  const ordersEmptyMessage = isSuperUser
+    ? 'No hay pedidos registrados en la base de datos.'
+    : 'Aun no tienes pedidos.';
   const adminProducts = isSuperUser ? app.catalog?.getAdminProducts?.() ?? [] : [];
   const adminCategoryKeys = useMemo(() => app.catalog?.getCategoryKeys?.() ?? [], [app]);
+  const statusLabelMap = useMemo(
+    () => Object.fromEntries(ORDER_STATUS_OPTIONS.map((option) => [option.value, option.label])),
+    []
+  );
+
+  const buildOrderStatusDrafts = (orders) => {
+    if (!Array.isArray(orders)) {
+      return {};
+    }
+    return orders.reduce((acc, order) => {
+      const orderId = Number.parseInt(order?.idPedido, 10);
+      if (!Number.isInteger(orderId) || orderId <= 0) {
+        return acc;
+      }
+      const statusKey = String(order?.statusKey || '').trim().toUpperCase() || 'PENDIENTE';
+      acc[orderId] = statusKey;
+      return acc;
+    }, {});
+  };
+
+  useEffect(() => {
+    if (!isSuperUser && cuentaTab === 'crud') {
+      setCuentaTab('pedidos');
+    }
+  }, [isSuperUser, cuentaTab]);
+
+  const refreshOrders = async () => {
+    if (!usuarioActivo || !app?.orders) {
+      setPedidosUsuario([]);
+      setPedidosAdmin([]);
+      setOrdersLoading(false);
+      return;
+    }
+
+    setOrdersLoading(true);
+    const [userOrdersResult, adminOrdersResult] = await Promise.all([
+      app.orders.getUserOrders?.(usuarioActivo),
+      isSuperUser ? app.orders.getAdminOrders?.(usuarioActivo) : Promise.resolve([]),
+    ]);
+    setPedidosUsuario(Array.isArray(userOrdersResult) ? userOrdersResult : []);
+    const safeAdminOrders = Array.isArray(adminOrdersResult) ? adminOrdersResult : [];
+    setPedidosAdmin(safeAdminOrders);
+    setOrderStatusDrafts(isSuperUser ? buildOrderStatusDrafts(safeAdminOrders) : {});
+    setOrdersLoading(false);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOrders = async () => {
+      if (!usuarioActivo || !app?.orders) {
+        if (!isMounted) {
+          return;
+        }
+        setPedidosUsuario([]);
+        setPedidosAdmin([]);
+        setOrdersLoading(false);
+        return;
+      }
+
+      setOrdersLoading(true);
+      const [userOrdersResult, adminOrdersResult] = await Promise.all([
+        app.orders.getUserOrders?.(usuarioActivo),
+        isSuperUser ? app.orders.getAdminOrders?.(usuarioActivo) : Promise.resolve([]),
+      ]);
+      if (!isMounted) {
+        return;
+      }
+      setPedidosUsuario(Array.isArray(userOrdersResult) ? userOrdersResult : []);
+      const safeAdminOrders = Array.isArray(adminOrdersResult) ? adminOrdersResult : [];
+      setPedidosAdmin(safeAdminOrders);
+      setOrderStatusDrafts(isSuperUser ? buildOrderStatusDrafts(safeAdminOrders) : {});
+      setOrdersLoading(false);
+    };
+
+    loadOrders();
+    return () => {
+      isMounted = false;
+    };
+  }, [app, usuarioActivo, isSuperUser]);
+
+  const onOrderStatusDraftChange = (orderId) => (event) => {
+    setOrdersError('');
+    setOrdersSuccess('');
+    setOrderStatusDrafts((prev) => ({
+      ...prev,
+      [orderId]: event.target.value,
+    }));
+  };
+
+  const updateOrderStatus = async (order) => {
+    const orderId = Number.parseInt(order?.idPedido, 10);
+    if (!isSuperUser || !Number.isInteger(orderId) || orderId <= 0) {
+      return;
+    }
+    if (typeof app?.orders?.updateOrderStatus !== 'function') {
+      setOrdersError('No esta disponible la actualizacion de estado de pedidos en esta version.');
+      return;
+    }
+
+    const status = String(orderStatusDrafts[orderId] || order?.statusKey || 'PENDIENTE');
+    setOrdersError('');
+    setOrdersSuccess('');
+    setUpdatingOrderId(orderId);
+
+    const result = await app.orders.updateOrderStatus({
+      adminUser: usuarioActivo,
+      orderId,
+      status,
+    });
+
+    if (!result?.ok) {
+      setOrdersError(result?.error || 'No se pudo actualizar el estado del pedido.');
+      setUpdatingOrderId(null);
+      return;
+    }
+
+    setOrdersSuccess(`Pedido ${order.id} actualizado a ${statusLabelMap[status] || status}.`);
+    await refreshOrders();
+    setUpdatingOrderId(null);
+  };
 
   // Utilidades de visualizacion.
   const formatOrderDate = (value) => {
@@ -178,6 +326,7 @@ function AccountPage({ app }) {
       ...prev,
       title: '',
       price: '',
+      stock: '10',
       img: '',
       imgHover: '',
     }));
@@ -189,6 +338,7 @@ function AccountPage({ app }) {
     return {
       title: draft?.title ?? product.title ?? '',
       price: draft?.price ?? `${product.price ?? ''}`,
+      stock: draft?.stock ?? `${product.stock ?? 0}`,
       img: draft?.img ?? product.img ?? '',
       imgHover: draft?.imgHover ?? product.imgHover ?? '',
       categories: Array.isArray(draft?.categories) ? draft.categories : categories,
@@ -198,7 +348,9 @@ function AccountPage({ app }) {
   const onProductDraftFieldChange = (productId, field, product, categories) => (event) => {
     clearAdminMessages();
     const current = getProductDraft(productId, product, categories);
-    const value = field === 'price' ? event.target.value : String(event.target.value || '');
+    const value = field === 'price' || field === 'stock'
+      ? event.target.value
+      : String(event.target.value || '');
     setEditDrafts((prev) => ({
       ...prev,
       [productId]: {
@@ -232,6 +384,7 @@ function AccountPage({ app }) {
       id: productId,
       title: draft.title,
       price: draft.price,
+      stock: draft.stock,
       img: draft.img,
       imgHover: draft.imgHover,
       categories: draft.categories,
@@ -285,9 +438,14 @@ function AccountPage({ app }) {
     setAccountForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
-  const onPaymentMethodFieldChange = (field) => (event) => {
+  const onPasswordFieldChange = (field) => (event) => {
     clearAccountMessages();
-    setPaymentMethodForm((prev) => ({ ...prev, [field]: event.target.value }));
+    setPasswordForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const onDeleteAccountPasswordChange = (event) => {
+    clearAccountMessages();
+    setDeleteAccountPassword(event.target.value);
   };
 
   const saveAccountInformation = (event) => {
@@ -311,37 +469,86 @@ function AccountPage({ app }) {
     setAccountSuccess('Informacion de cuenta actualizada.');
   };
 
-  const addPaymentMethod = (event) => {
+  const changePassword = async (event) => {
     event.preventDefault();
     clearAccountMessages();
 
-    const result = auth.addPaymentMethod?.(usuarioActivo, paymentMethodForm);
-    if (!result?.ok) {
-      setAccountError(result?.error || 'No se pudo agregar el metodo de pago.');
+    if (!REGEX_PASSWORD.test(passwordForm.newPassword)) {
+      setAccountError(
+        'La contrasena debe tener entre 6 y 10 caracteres, incluir al menos un signo especial (!@#$%^&*) y solo puede contener letras (sin enie ni acentos), numeros y esos signos.'
+      );
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setAccountError('La nueva contrasena y su confirmacion no coinciden.');
       return;
     }
 
-    setPaymentMethods(result.paymentMethods || []);
-    setPaymentMethodForm(EMPTY_PAYMENT_METHOD_FORM);
-    setAccountSuccess('Metodo de pago agregado.');
+    if (typeof auth.changePassword !== 'function') {
+      setAccountError('No esta disponible el cambio de contrasena en esta version.');
+      return;
+    }
+
+    const result = await auth.changePassword({
+      user: usuarioActivo,
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    });
+
+    if (!result?.ok) {
+      setAccountError(result?.error || 'No se pudo cambiar la contrasena.');
+      return;
+    }
+
+    setPasswordForm(EMPTY_PASSWORD_FORM);
+    setAccountSuccess('Contrasena actualizada correctamente.');
   };
 
-  const removePaymentMethod = (methodId) => {
+  const deleteAccount = async (event) => {
+    event.preventDefault();
     clearAccountMessages();
-    const result = auth.removePaymentMethod?.(usuarioActivo, methodId);
-    if (!result?.ok) {
-      setAccountError(result?.error || 'No se pudo eliminar el metodo de pago.');
+
+    if (!deleteAccountPassword.trim()) {
+      setAccountError('Ingresa tu contrasena actual para eliminar la cuenta.');
       return;
     }
-    setPaymentMethods(result.paymentMethods || []);
-    setAccountSuccess('Metodo de pago eliminado.');
+    if (typeof auth.deleteAccount !== 'function') {
+      setAccountError('No esta disponible eliminar cuenta en esta version.');
+      return;
+    }
+
+    const confirmed = typeof window === 'undefined'
+      ? true
+      : window.confirm(
+          'Vas a eliminar tu cuenta de forma permanente. Esta accion no se puede deshacer. Deseas continuar?'
+        );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    const result = await auth.deleteAccount({
+      user: usuarioActivo,
+      password: deleteAccountPassword,
+    });
+    setIsDeletingAccount(false);
+
+    if (!result?.ok) {
+      setAccountError(result?.error || 'No se pudo eliminar la cuenta.');
+      return;
+    }
+
+    cerrarSesion();
   };
 
   useEffect(() => {
     if (!auth || !usuarioActivo) {
       setAccountForm(EMPTY_ACCOUNT_FORM);
-      setPaymentMethods([]);
-      setPaymentMethodForm(EMPTY_PAYMENT_METHOD_FORM);
+      setPasswordForm(EMPTY_PASSWORD_FORM);
+      setShowPasswordFields(false);
+      setDeleteAccountPassword('');
+      setShowDeletePassword(false);
+      setIsDeletingAccount(false);
       setAccountError('');
       setAccountSuccess('');
       return;
@@ -353,8 +560,11 @@ function AccountPage({ app }) {
       correo: settings?.correo || '',
       direccionEnvio: settings?.direccionEnvio || '',
     });
-    setPaymentMethods(settings?.paymentMethods || []);
-    setPaymentMethodForm(EMPTY_PAYMENT_METHOD_FORM);
+    setPasswordForm(EMPTY_PASSWORD_FORM);
+    setShowPasswordFields(false);
+    setDeleteAccountPassword('');
+    setShowDeletePassword(false);
+    setIsDeletingAccount(false);
     setAccountError('');
     setAccountSuccess('');
   }, [auth, usuarioActivo]);
@@ -464,7 +674,7 @@ function AccountPage({ app }) {
                 aria-selected={cuentaTab === 'pedidos' ? 'true' : 'false'}
                 onClick={() => setCuentaTab('pedidos')}
               >
-                Mis pedidos
+                {ordersTabLabel}
               </button>
               <button
                 type="button"
@@ -475,26 +685,80 @@ function AccountPage({ app }) {
               >
                 Editar cuenta
               </button>
+              {isSuperUser && (
+                <button
+                  type="button"
+                  role="tab"
+                  className={`cuenta-submenu__btn ${cuentaTab === 'crud' ? 'is-active' : ''}`}
+                  aria-selected={cuentaTab === 'crud' ? 'true' : 'false'}
+                  onClick={() => setCuentaTab('crud')}
+                >
+                  CRUD productos
+                </button>
+              )}
             </div>
 
             {cuentaTab === 'pedidos' && (
-              <section className="pedidos-panel" aria-label="Mis pedidos">
-                <h3>Mis pedidos</h3>
-                {pedidosUsuario.length === 0 ? (
+              <section className="pedidos-panel" aria-label={ordersTabLabel}>
+                <div className="admin-orders-panel__top">
+                  <h3>{ordersTabLabel}</h3>
+                  {isSuperUser ? (
+                    <button type="button" className="admin-btn admin-btn--secondary" onClick={refreshOrders}>
+                      Actualizar pedidos
+                    </button>
+                  ) : null}
+                </div>
+                {ordersError ? <p className="cuenta-msg cuenta-msg--error">{ordersError}</p> : null}
+                {ordersSuccess ? <p className="cuenta-msg cuenta-msg--ok">{ordersSuccess}</p> : null}
+                {ordersLoading ? (
+                  <p className="pedidos-empty">Cargando pedidos...</p>
+                ) : ordersForTab.length === 0 ? (
                   <p className="pedidos-empty">
-                    Aun no tienes pedidos. Ve al <a href="#/carrito">carrito</a> y finaliza uno.
+                    {ordersEmptyMessage}
+                    {isSuperUser ? null : (
+                      <>
+                        {' '}
+                        Ve al <a href="#/carrito">carrito</a> y finaliza uno.
+                      </>
+                    )}
                   </p>
                 ) : (
                   <div className="pedidos-list">
-                    {pedidosUsuario.map((pedido) => (
+                    {ordersForTab.map((pedido) => (
                       <article key={pedido.id} className="pedido-card">
                         <div className="pedido-card__top">
                           <strong>{pedido.id}</strong>
                           <span>{pedido.status}</span>
                         </div>
                         <p>{formatOrderDate(pedido.createdAt)}</p>
+                        {isSuperUser ? <p>{`Usuario: ${pedido.user?.usuario || 'N/A'}`}</p> : null}
                         <p>{`Total: ${app.currency.formatMXN(pedido.total)}`}</p>
                         <p>{`Productos: ${pedido.items.length}`}</p>
+                        {isSuperUser ? (
+                          <div className="pedido-status-actions">
+                            <label htmlFor={`pedido-status-${pedido.idPedido}`}>Estado</label>
+                            <select
+                              id={`pedido-status-${pedido.idPedido}`}
+                              value={orderStatusDrafts[pedido.idPedido] || pedido.statusKey || 'PENDIENTE'}
+                              onChange={onOrderStatusDraftChange(pedido.idPedido)}
+                              disabled={updatingOrderId === pedido.idPedido}
+                            >
+                              {ORDER_STATUS_OPTIONS.map((option) => (
+                                <option key={`${pedido.idPedido}-${option.value}`} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="admin-btn admin-btn--secondary"
+                              onClick={() => updateOrderStatus(pedido)}
+                              disabled={updatingOrderId === pedido.idPedido}
+                            >
+                              {updatingOrderId === pedido.idPedido ? 'Guardando...' : 'Guardar estado'}
+                            </button>
+                          </div>
+                        ) : null}
                       </article>
                     ))}
                   </div>
@@ -547,113 +811,101 @@ function AccountPage({ app }) {
                   </div>
                 </form>
 
-                {accountError ? <p className="cuenta-msg cuenta-msg--error">{accountError}</p> : null}
-                {accountSuccess ? <p className="cuenta-msg cuenta-msg--ok">{accountSuccess}</p> : null}
-
-                <section className="metodos-pago-panel" aria-label="Metodos de pago">
-                  <h4>Metodos de pago</h4>
-
-                  {paymentMethods.length === 0 ? (
-                    <p className="metodo-pago-empty">Aun no tienes metodos de pago guardados.</p>
-                  ) : (
-                    <div className="metodos-pago-list">
-                      {paymentMethods.map((method) => (
-                        <article key={method.id} className="metodo-pago-card">
-                          <div className="metodo-pago-card__top">
-                            <strong>{method.alias}</strong>
-                            <span>{method.type}</span>
-                          </div>
-                          <p>{`Titular: ${method.holder}`}</p>
-                          <p>{`Terminacion: **** ${method.last4}`}</p>
-                          <p>{`Expira: ${method.expiry}`}</p>
-                          <button
-                            type="button"
-                            className="metodo-remove-btn"
-                            onClick={() => removePaymentMethod(method.id)}
-                          >
-                            Eliminar metodo
-                          </button>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-
-                  <form className="metodo-pago-form" onSubmit={addPaymentMethod}>
+                <section className="cuenta-password-panel" aria-label="Cambiar contrasena">
+                  <h4>Cambiar contrasena</h4>
+                  <form className="cuenta-password-form" onSubmit={changePassword}>
                     <div className="cuenta-field">
-                      <label htmlFor="metodo-tipo">Tipo</label>
-                      <select
-                        id="metodo-tipo"
-                        value={paymentMethodForm.type}
-                        onChange={onPaymentMethodFieldChange('type')}
-                      >
-                        {PAYMENT_METHOD_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="cuenta-field">
-                      <label htmlFor="metodo-alias">Alias</label>
+                      <label htmlFor="account-current-password">Contrasena actual</label>
                       <input
-                        id="metodo-alias"
-                        type="text"
-                        value={paymentMethodForm.alias}
-                        onChange={onPaymentMethodFieldChange('alias')}
-                        placeholder="Tarjeta principal"
+                        id="account-current-password"
+                        type={showPasswordFields ? 'text' : 'password'}
+                        value={passwordForm.currentPassword}
+                        onChange={onPasswordFieldChange('currentPassword')}
                         required
                       />
                     </div>
 
                     <div className="cuenta-field">
-                      <label htmlFor="metodo-titular">Titular</label>
+                      <label htmlFor="account-new-password">Nueva contrasena</label>
                       <input
-                        id="metodo-titular"
-                        type="text"
-                        value={paymentMethodForm.holder}
-                        onChange={onPaymentMethodFieldChange('holder')}
+                        id="account-new-password"
+                        type={showPasswordFields ? 'text' : 'password'}
+                        value={passwordForm.newPassword}
+                        onChange={onPasswordFieldChange('newPassword')}
                         required
                       />
                     </div>
 
                     <div className="cuenta-field">
-                      <label htmlFor="metodo-last4">Ultimos 4 digitos</label>
+                      <label htmlFor="account-confirm-password">Confirmar nueva contrasena</label>
                       <input
-                        id="metodo-last4"
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={paymentMethodForm.last4}
-                        onChange={onPaymentMethodFieldChange('last4')}
-                        placeholder="1234"
+                        id="account-confirm-password"
+                        type={showPasswordFields ? 'text' : 'password'}
+                        value={passwordForm.confirmPassword}
+                        onChange={onPasswordFieldChange('confirmPassword')}
                         required
                       />
                     </div>
 
-                    <div className="cuenta-field">
-                      <label htmlFor="metodo-expiry">Expiracion</label>
+                    <label className="cuenta-show-pass cuenta-field--wide" htmlFor="account-show-passwords">
                       <input
-                        id="metodo-expiry"
-                        type="text"
-                        value={paymentMethodForm.expiry}
-                        onChange={onPaymentMethodFieldChange('expiry')}
-                        placeholder="MM/AA"
-                        required
+                        id="account-show-passwords"
+                        type="checkbox"
+                        checked={showPasswordFields}
+                        onChange={(event) => setShowPasswordFields(event.target.checked)}
                       />
-                    </div>
+                      Ver contrasenas
+                    </label>
 
                     <div className="cuenta-form-actions">
                       <button type="submit" className="admin-btn admin-btn--secondary">
-                        Agregar metodo de pago
+                        Actualizar contrasena
                       </button>
                     </div>
                   </form>
                 </section>
+
+                <section className="cuenta-danger-panel" aria-label="Eliminar cuenta">
+                  <h4>Eliminar cuenta</h4>
+                  <p className="cuenta-danger-copy">
+                    Esta accion es permanente y eliminara tu acceso a esta cuenta.
+                  </p>
+                  <form className="cuenta-delete-form" onSubmit={deleteAccount}>
+                    <div className="cuenta-field">
+                      <label htmlFor="account-delete-password">Contrasena actual</label>
+                      <input
+                        id="account-delete-password"
+                        type={showDeletePassword ? 'text' : 'password'}
+                        value={deleteAccountPassword}
+                        onChange={onDeleteAccountPasswordChange}
+                        required
+                      />
+                    </div>
+
+                    <label className="cuenta-show-pass" htmlFor="account-show-delete-password">
+                      <input
+                        id="account-show-delete-password"
+                        type="checkbox"
+                        checked={showDeletePassword}
+                        onChange={(event) => setShowDeletePassword(event.target.checked)}
+                      />
+                      Ver contrasena
+                    </label>
+
+                    <div className="cuenta-form-actions">
+                      <button type="submit" className="admin-btn admin-btn--danger" disabled={isDeletingAccount}>
+                        {isDeletingAccount ? 'Eliminando...' : 'Eliminar cuenta'}
+                      </button>
+                    </div>
+                  </form>
+                </section>
+
+                {accountError ? <p className="cuenta-msg cuenta-msg--error">{accountError}</p> : null}
+                {accountSuccess ? <p className="cuenta-msg cuenta-msg--ok">{accountSuccess}</p> : null}
               </section>
             )}
 
-            {isSuperUser && (
+            {isSuperUser && cuentaTab === 'crud' && (
               <section className="admin-productos-panel" aria-label="Panel super usuario">
                 <h3>Panel Super Usuario (CRUD Productos)</h3>
 
@@ -678,6 +930,19 @@ function AccountPage({ app }) {
                       step="0.01"
                       value={createProductForm.price}
                       onChange={onCreateProductFieldChange('price')}
+                      required
+                    />
+                  </div>
+
+                  <div className="admin-field">
+                    <label htmlFor="admin-product-stock">Stock inicial</label>
+                    <input
+                      id="admin-product-stock"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={createProductForm.stock}
+                      onChange={onCreateProductFieldChange('stock')}
                       required
                     />
                   </div>
@@ -741,6 +1006,7 @@ function AccountPage({ app }) {
                         </div>
                         <p>{`ID: ${id}`}</p>
                         <p>{`Precio actual: ${app.currency.formatMXN(product.price)}`}</p>
+                        <p>{`Stock actual: ${product.stock}`}</p>
                         <p>{`Categorias: ${categories.length ? categories.join(', ') : 'Sin categoria'}`}</p>
 
                         <div className="admin-edit-grid">
@@ -763,6 +1029,18 @@ function AccountPage({ app }) {
                               step="0.01"
                               value={draft.price}
                               onChange={onProductDraftFieldChange(id, 'price', product, categories)}
+                            />
+                          </div>
+
+                          <div className="admin-field">
+                            <label htmlFor={`admin-edit-stock-${id}`}>Stock</label>
+                            <input
+                              id={`admin-edit-stock-${id}`}
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={draft.stock}
+                              onChange={onProductDraftFieldChange(id, 'stock', product, categories)}
                             />
                           </div>
 

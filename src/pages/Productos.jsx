@@ -1,12 +1,10 @@
 import { useState } from 'react';
 
-/** Vista detalle de producto con selector de color/cantidad y accion de carrito. */
+/** Vista detalle de producto con selector de cantidad y accion de carrito. */
 function ProductPage({ app, productId }) {
   // Datos y estado local
   const product = app.catalog.getProduct(productId);
-  const colors = app.catalog.getDefaultProductColors();
   const [qty, setQty] = useState(1);
-  const [selectedColor, setSelectedColor] = useState(0);
 
   if (!product) {
     return (
@@ -23,6 +21,8 @@ function ProductPage({ app, productId }) {
     app.images.normalize(product.img),
     app.images.normalize(product.imgHover || product.img),
   ];
+  const availableStock = Math.max(0, Number.parseInt(product.stock, 10) || 0);
+  const isOutOfStock = availableStock <= 0;
 
   /** Valida cantidad ingresada y la limita al rango permitido. */
   const updateQty = (value) => {
@@ -31,14 +31,29 @@ function ProductPage({ app, productId }) {
       setQty(1);
       return;
     }
-    setQty(Math.max(1, Math.min(99, next)));
+    const maxQty = availableStock > 0 ? availableStock : 1;
+    setQty(Math.max(1, Math.min(maxQty, next)));
   };
 
-  /** Agrega el producto actual al carrito con color y cantidad seleccionados. */
+  /** Agrega el producto actual al carrito con cantidad seleccionada. */
   const addToCart = () => {
-    const color = colors[selectedColor].name;
-    app.cart.addItem({ productId, quantity: qty, color });
-    window.alert(`Anadido: ${product.title}\nColor: ${color}\nCantidad: ${qty}`);
+    if (isOutOfStock) {
+      window.alert('Producto sin stock disponible.');
+      return;
+    }
+
+    const existingInCart = Number.parseInt(app.cart.getItemQuantity?.(productId), 10) || 0;
+    const availableToAdd = Math.max(0, availableStock - existingInCart);
+    if (availableToAdd <= 0) {
+      window.alert('Ya alcanzaste el stock disponible de este producto en tu carrito.');
+      return;
+    }
+
+    const quantityToAdd = Math.min(Math.max(1, qty), availableToAdd);
+    app.cart.addItem({ productId, quantity: quantityToAdd });
+    window.alert(
+      `Anadido: ${product.title}\nCantidad: ${quantityToAdd}\nStock restante: ${availableStock - existingInCart - quantityToAdd}`
+    );
   };
 
   // Render
@@ -57,44 +72,41 @@ function ProductPage({ app, productId }) {
         <aside className="side">
           <h2 style={{ margin: '6px 0 6px', fontSize: '22px' }}>{product.title}</h2>
           <div className="price">{app.currency.formatMXN(product.price)}</div>
-
-          <div className="opt">
-            <label>Color</label>
-            <div className="swatches">
-              {colors.map((color, idx) => (
-                <button
-                  key={color.name}
-                  className="swatch"
-                  type="button"
-                  title={color.name}
-                  style={{ background: color.value }}
-                  role="radio"
-                  aria-checked={selectedColor === idx ? 'true' : 'false'}
-                  onClick={() => setSelectedColor(idx)}
-                />
-              ))}
-            </div>
+          <div className={`stock ${isOutOfStock ? 'is-out' : ''}`}>
+            <span className="dot" />
+            <span>{isOutOfStock ? 'Sin stock' : `Stock disponible: ${availableStock}`}</span>
           </div>
 
           <div className="opt">
             <label>Cantidad</label>
             <div className="qty">
-              <button type="button" onClick={() => setQty((prev) => Math.max(1, prev - 1))}>
+              <button
+                type="button"
+                disabled={isOutOfStock}
+                onClick={() => setQty((prev) => Math.max(1, prev - 1))}
+              >
                 -
               </button>
               <input
                 value={qty}
                 inputMode="numeric"
+                disabled={isOutOfStock}
                 onChange={(event) => updateQty(event.target.value || '1')}
               />
-              <button type="button" onClick={() => setQty((prev) => Math.min(99, prev + 1))}>
+              <button
+                type="button"
+                disabled={isOutOfStock}
+                onClick={() => setQty((prev) => Math.min(availableStock, prev + 1))}
+              >
                 +
               </button>
             </div>
           </div>
 
-          <button className="btn primary" type="button" onClick={addToCart}>
-            ANADIR AL CARRITO - {app.currency.formatMXN(product.price)}
+          <button className="btn primary" type="button" onClick={addToCart} disabled={isOutOfStock}>
+            {isOutOfStock
+              ? 'SIN STOCK'
+              : `ANADIR AL CARRITO - ${app.currency.formatMXN(product.price)}`}
           </button>
         </aside>
       </div>

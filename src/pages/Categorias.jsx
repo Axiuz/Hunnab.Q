@@ -67,6 +67,9 @@ function CategoryPage({ app, categoryKey }) {
               <div className="card__body">
                 <strong>{product.title}</strong>
                 <span>{app.currency.formatMXN(product.price)}</span>
+                <span className={`card-stock ${product.stock <= 0 ? 'is-out' : ''}`}>
+                  {product.stock <= 0 ? 'Sin stock' : `Stock: ${product.stock}`}
+                </span>
               </div>
             </a>
           );

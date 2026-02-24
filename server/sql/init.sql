@@ -17,38 +17,6 @@ CREATE TABLE IF NOT EXISTS usuario (
   CONSTRAINT uq_usuario_usuario UNIQUE (usuario)
 ) ENGINE=InnoDB;
 
--- USUARIO_CUENTA
-CREATE TABLE IF NOT EXISTS usuario_cuenta (
-  id_usuario INT UNSIGNED PRIMARY KEY,
-  fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  direccion_envio VARCHAR(255) NULL,
-
-  CONSTRAINT fk_usuario_cuenta_usuario
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-    ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- USUARIO_INVITADO
-CREATE TABLE IF NOT EXISTS usuario_invitado (
-  id_usuario INT UNSIGNED PRIMARY KEY,
-  sesion_temporal VARCHAR(100) NOT NULL,
-  CONSTRAINT uq_usuario_invitado_sesion UNIQUE (sesion_temporal),
-
-  CONSTRAINT fk_usuario_invitado_usuario
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-    ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- USUARIO_ADMINISTRADOR
-CREATE TABLE IF NOT EXISTS usuario_administrador (
-  id_usuario INT UNSIGNED PRIMARY KEY,
-  nivel_permiso TINYINT UNSIGNED NOT NULL DEFAULT 1,
-
-  CONSTRAINT fk_usuario_admin_usuario
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-    ON DELETE CASCADE
-) ENGINE=InnoDB;
-
 -- PRODUCTO
 CREATE TABLE IF NOT EXISTS producto (
   id_producto INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -67,40 +35,27 @@ CREATE TABLE IF NOT EXISTS producto (
   fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- CARRITO
-CREATE TABLE IF NOT EXISTS carrito (
-  id_carrito INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+-- PEDIDOS (antes detalle_carrito)
+CREATE TABLE IF NOT EXISTS pedidos (
+  id_pedido INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_usuario INT UNSIGNED NOT NULL,
-  fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  estado ENUM('ACTIVO','PAGADO','CANCELADO') NOT NULL DEFAULT 'ACTIVO',
-
-  CONSTRAINT fk_carrito_usuario
-    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
-    ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- DETALLE_CARRITO
-CREATE TABLE IF NOT EXISTS detalle_carrito (
-  id_detalle INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  id_carrito INT UNSIGNED NOT NULL,
   id_producto INT UNSIGNED NOT NULL,
   cantidad INT UNSIGNED NOT NULL DEFAULT 1,
   precio_unitario DECIMAL(10,2) NOT NULL,
   subtotal DECIMAL(10,2) GENERATED ALWAYS AS (cantidad * precio_unitario) STORED,
+  estado ENUM('PENDIENTE','EN PREPARACION','ENVIADO') NOT NULL DEFAULT 'PENDIENTE',
+  fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  CONSTRAINT fk_detalle_carrito
-    FOREIGN KEY (id_carrito) REFERENCES carrito(id_carrito)
+  CONSTRAINT fk_pedidos_usuario
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
     ON DELETE CASCADE,
 
-  CONSTRAINT fk_detalle_producto
+  CONSTRAINT fk_pedidos_producto
     FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
-    ON DELETE RESTRICT,
-
-  CONSTRAINT uq_detalle_carrito_producto UNIQUE (id_carrito, id_producto)
+    ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- ÍNDICES
 CREATE INDEX idx_usuario_correo ON usuario(correo);
 CREATE INDEX idx_producto_categoria ON producto(categoria);
-
-
+CREATE INDEX idx_pedidos_usuario_estado ON pedidos(id_usuario, estado);

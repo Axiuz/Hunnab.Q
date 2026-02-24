@@ -98,59 +98,70 @@ export const PRODUCTS = {
   'gargantilla-luna': {
     title: 'Collar Aquamarina',
     price: 250,
+    stock: 15,
     img: 'imagenes/Collar_Aquamarina.jpeg',
     imgHover: 'imagenes/Collar_Nautilus_Negro.jpeg',
   },
   'gargantilla-perla': {
     title: 'Collar Nautilus',
     price: 270,
+    stock: 12,
     img: 'imagenes/Collar_Nautilus.jpeg',
     imgHover: 'imagenes/Collar_Nautilus_Negro.jpeg',
   },
   'gargantilla-minimal': {
     title: 'Collar Libelula',
     price: 170,
+    stock: 18,
     img: 'imagenes/Collar_Libelula.jpeg',
     imgHover: 'imagenes/Collar_Nautilus_Negro.jpeg',
   },
   'corbatin-satin': {
     title: 'Collar Amatista',
     price: 280,
+    stock: 10,
     img: 'imagenes/Collar_Amatista.jpeg',
   },
   'corbatin-oro': {
     title: 'Collar Oro',
     price: 310,
+    stock: 8,
     img: 'imagenes/Collar_Arbolvida.jpeg',
   },
   'arracadas-clasicas': {
     title: 'Arracadas Clasicas',
     price: 260,
+    stock: 14,
     img: 'imagenes/Anillo_Muestra.jpeg',
   },
   'arracadas-chunky': {
     title: 'Arracadas Chunky',
     price: 320,
+    stock: 9,
     img: 'imagenes/Anillo_Modelo.jpeg',
   },
   'anillo-modelo': {
     title: 'Anillo Modelo',
     price: 290,
+    stock: 11,
     img: 'imagenes/Anillo_Modelo.jpeg',
   },
   'anillo-muestra': {
     title: 'Anillo Muestra',
     price: 260,
+    stock: 16,
     img: 'imagenes/Anillo_Muestra.jpeg',
   },
   'pulsera-nudo': {
     title: 'Pulsera Piedra Volcanica',
     price: 180,
+    stock: 20,
     img: 'imagenes/Pulsera_Volcanica.png',
   },
   'pulsera-bicolor': {
     title: 'Pulsera Onyx',
     price: 210,
+    stock: 13,
     img: 'imagenes/Pulseras_Onyx.png',
   },
 };
@@ -172,12 +183,4 @@ export const DEFAULT_CATEGORY_TABS = [
     label: 'Cuidados',
     content: () => 'Evita quimicos, guarda por separado y limpia con pano suave.',
   },
-];
-
-// Paleta disponible para el selector de color en detalle de producto.
-export const DEFAULT_PRODUCT_COLORS = [
-  { name: 'Negro', value: '#111111' },
-  { name: 'Dorado', value: '#d4af37' },
-  { name: 'Plateado', value: '#bfc7d5' },
-  { name: 'Rosa', value: '#e7a9b7' },
 ];

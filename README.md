@@ -14,7 +14,7 @@ En MySQL Workbench ejecuta:
 SOURCE server/sql/init.sql;
 ```
 
-Ese script crea la base `Hunnab_Q` y tablas como `usuario`, `carrito`, `detalle_carrito`, etc.
+Ese script crea la base `Hunnab_Q` y las tablas `usuario`, `producto` y `pedidos`.
 
 ## 2) Crear usuario de BD para la app
 

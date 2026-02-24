@@ -1,7 +1,6 @@
 import {
   CATEGORIES,
   DEFAULT_CATEGORY_TABS,
-  DEFAULT_PRODUCT_COLORS,
   FALLBACK_IMAGE,
   HOME_CATEGORY_KEYS,
   PRODUCTS,
@@ -15,12 +14,11 @@ import {
 
 /** Modelo de catalogo con soporte para personalizaciones admin persistidas localmente. */
 class CatalogModel {
-  constructor({ categories, products, homeCategoryKeys, defaultCategoryTabs, defaultProductColors }) {
+  constructor({ categories, products, homeCategoryKeys, defaultCategoryTabs }) {
     this.categories = categories;
     this.products = products;
     this.homeCategoryKeys = homeCategoryKeys;
     this.defaultCategoryTabs = defaultCategoryTabs;
-    this.defaultProductColors = defaultProductColors;
 
     this.productOverridesStorageKey = 'hunnab_product_overrides';
     this.hiddenProductsStorageKey = 'hunnab_hidden_products';
@@ -118,6 +116,23 @@ class CatalogModel {
     return this.customProducts[key] ?? this.products[key] ?? null;
   }
 
+  normalizeStockValue(value, fallback = 0) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) {
+      return Math.max(0, Number.parseInt(fallback, 10) || 0);
+    }
+    return Math.max(0, parsed);
+  }
+
+  getProductOverrideObject(productId) {
+    const key = String(productId);
+    const currentOverride = this.productOverrides[key];
+    if (currentOverride && !Array.isArray(currentOverride) && typeof currentOverride === 'object') {
+      return { ...currentOverride };
+    }
+    return {};
+  }
+
   getProduct(id, { includeHidden = false } = {}) {
     const key = String(id);
     const rawProduct = this.getRawProduct(key);
@@ -137,10 +152,15 @@ class CatalogModel {
         : typeof override === 'string'
           ? { title: override }
           : {};
-
-    return {
+    const mergedProduct = {
       ...rawProduct,
       ...normalizedOverride,
+    };
+    const fallbackStock = this.normalizeStockValue(rawProduct.stock, 0);
+
+    return {
+      ...mergedProduct,
+      stock: this.normalizeStockValue(mergedProduct.stock, fallbackStock),
       _isHidden: hidden,
       _isCustom: Boolean(this.customProducts[key]),
     };
@@ -265,15 +285,23 @@ class CatalogModel {
     return candidate;
   }
 
-  adminCreateProduct({ title, price, img, imgHover = '', categoryKey }) {
+  adminCreateProduct({ title, price, stock, img, imgHover = '', categoryKey }) {
     const safeTitle = String(title || '').trim();
     const safeImg = String(img || '').trim();
     const safeImgHover = String(imgHover || '').trim();
     const safeCategory = String(categoryKey || '').trim();
     const numericPrice = Number.parseFloat(price);
+    const numericStock = Number.parseInt(stock, 10);
 
-    if (!safeTitle || !safeImg || !safeCategory || Number.isNaN(numericPrice)) {
-      return { ok: false, error: 'Completa nombre, precio, imagen y categoria.' };
+    if (
+      !safeTitle
+      || !safeImg
+      || !safeCategory
+      || Number.isNaN(numericPrice)
+      || Number.isNaN(numericStock)
+      || numericStock < 0
+    ) {
+      return { ok: false, error: 'Completa nombre, precio, stock, imagen y categoria.' };
     }
     if (!this.getCategory(safeCategory)) {
       return { ok: false, error: 'Categoria invalida.' };
@@ -283,6 +311,7 @@ class CatalogModel {
     this.customProducts[id] = {
       title: safeTitle,
       price: numericPrice,
+      stock: numericStock,
       img: safeImg,
       ...(safeImgHover ? { imgHover: safeImgHover } : {}),
     };
@@ -334,7 +363,7 @@ class CatalogModel {
     return { ok: true };
   }
 
-  adminUpdateProduct({ id, title, price, img, imgHover = '', categories }) {
+  adminUpdateProduct({ id, title, price, stock, img, imgHover = '', categories }) {
     const key = String(id);
     const rawProduct = this.getRawProduct(key);
     if (!rawProduct) {
@@ -345,10 +374,11 @@ class CatalogModel {
     const safeImg = String(img || '').trim();
     const safeImgHover = String(imgHover || '').trim();
     const numericPrice = Number.parseFloat(price);
+    const numericStock = Number.parseInt(stock, 10);
     const normalizedCategories = this.normalizeCategoryList(categories);
 
-    if (!safeTitle || !safeImg || Number.isNaN(numericPrice)) {
-      return { ok: false, error: 'Nombre, precio e imagen principal son obligatorios.' };
+    if (!safeTitle || !safeImg || Number.isNaN(numericPrice) || Number.isNaN(numericStock) || numericStock < 0) {
+      return { ok: false, error: 'Nombre, precio, stock e imagen principal son obligatorios.' };
     }
     if (normalizedCategories.length === 0) {
       return { ok: false, error: 'Selecciona al menos una categoria.' };
@@ -356,21 +386,35 @@ class CatalogModel {
 
     const baseTitle = String(rawProduct.title || '').trim();
     const basePrice = Number.isFinite(Number(rawProduct.price)) ? Number(rawProduct.price) : 0;
+    const baseStock = this.normalizeStockValue(rawProduct.stock, 0);
     const baseImg = String(rawProduct.img || '').trim();
     const baseImgHover = String(rawProduct.imgHover || '').trim();
 
-    const nextOverride = {};
+    const nextOverride = this.getProductOverrideObject(key);
     if (safeTitle !== baseTitle) {
       nextOverride.title = safeTitle;
+    } else {
+      delete nextOverride.title;
     }
     if (numericPrice !== basePrice) {
       nextOverride.price = numericPrice;
+    } else {
+      delete nextOverride.price;
+    }
+    if (numericStock !== baseStock) {
+      nextOverride.stock = numericStock;
+    } else {
+      delete nextOverride.stock;
     }
     if (safeImg !== baseImg) {
       nextOverride.img = safeImg;
+    } else {
+      delete nextOverride.img;
     }
     if (safeImgHover !== baseImgHover) {
       nextOverride.imgHover = safeImgHover;
+    } else {
+      delete nextOverride.imgHover;
     }
 
     if (Object.keys(nextOverride).length === 0) {
@@ -409,6 +453,81 @@ class CatalogModel {
     return { ok: true };
   }
 
+  consumeStockForOrder(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return { ok: false, error: 'No hay productos para descontar stock.' };
+    }
+
+    const normalizedItems = items
+      .map((item) => ({
+        productId: String(item?.productId || ''),
+        quantity: Number.parseInt(item?.quantity, 10),
+      }))
+      .filter((item) => item.productId && Number.isInteger(item.quantity) && item.quantity > 0);
+
+    if (normalizedItems.length === 0) {
+      return { ok: false, error: 'No hay cantidades validas para descontar stock.' };
+    }
+
+    const groupedByProduct = normalizedItems.reduce((acc, item) => {
+      const key = String(item.productId);
+      const currentQty = acc.get(key) || 0;
+      acc.set(key, currentQty + item.quantity);
+      return acc;
+    }, new Map());
+
+    const insufficient = [];
+    groupedByProduct.forEach((quantity, productId) => {
+      const product = this.getProduct(productId, { includeHidden: true });
+      if (!product) {
+        insufficient.push(`Producto ${productId} no disponible`);
+        return;
+      }
+      const available = this.normalizeStockValue(product.stock, 0);
+      if (quantity > available) {
+        insufficient.push(`${product.title} (solicitado ${quantity}, disponible ${available})`);
+      }
+    });
+
+    if (insufficient.length > 0) {
+      return {
+        ok: false,
+        error: `Stock insuficiente: ${insufficient.join('; ')}`,
+      };
+    }
+
+    groupedByProduct.forEach((quantity, productId) => {
+      const product = this.getProduct(productId, { includeHidden: true });
+      if (!product) {
+        return;
+      }
+
+      const key = String(productId);
+      const nextStock = this.normalizeStockValue(product.stock, 0) - quantity;
+      const rawProduct = this.getRawProduct(key);
+      if (!rawProduct) {
+        return;
+      }
+      const baseStock = this.normalizeStockValue(rawProduct.stock, 0);
+      const overrideObject = this.getProductOverrideObject(key);
+
+      if (nextStock === baseStock) {
+        delete overrideObject.stock;
+      } else {
+        overrideObject.stock = nextStock;
+      }
+
+      if (Object.keys(overrideObject).length === 0) {
+        delete this.productOverrides[key];
+      } else {
+        this.productOverrides[key] = overrideObject;
+      }
+    });
+
+    this.persistObjectToStorage(this.productOverridesStorageKey, this.productOverrides);
+    return { ok: true };
+  }
+
   // Metadatos auxiliares de UI.
   getCategoryInfoTabs(category) {
     return this.defaultCategoryTabs.map((tab) => ({
@@ -416,10 +535,6 @@ class CatalogModel {
       label: tab.label,
       content: typeof tab.content === 'function' ? tab.content(category) : tab.content,
     }));
-  }
-
-  getDefaultProductColors() {
-    return this.defaultProductColors;
   }
 
   getSearchItems() {
@@ -482,6 +597,10 @@ class RouteManager {
       return { kind: 'cart' };
     }
 
+    if (value === 'checkout') {
+      return { kind: 'checkout' };
+    }
+
     if (value === 'cuenta') {
       return { kind: 'account' };
     }
@@ -526,9 +645,24 @@ class CartManager {
         return [];
       }
 
-      return parsed
+      const normalizedItems = parsed
         .map((item) => this.normalizeItem(item))
         .filter(Boolean);
+
+      // Compatibilidad con carritos antiguos que separaban por color.
+      const mergedByProduct = new Map();
+      normalizedItems.forEach((item) => {
+        const existing = mergedByProduct.get(item.productId);
+        if (!existing) {
+          mergedByProduct.set(item.productId, { ...item });
+          return;
+        }
+        mergedByProduct.set(item.productId, {
+          ...existing,
+          quantity: Math.min(99, existing.quantity + item.quantity),
+        });
+      });
+      return Array.from(mergedByProduct.values());
     } catch (error) {
       return [];
     }
@@ -559,13 +693,12 @@ class CartManager {
 
     return {
       productId: String(item.productId),
-      color: item.color ? String(item.color) : 'Unico',
       quantity: Math.max(1, Math.min(99, quantity)),
     };
   }
 
-  findItemIndex(productId, color) {
-    return this.items.findIndex((item) => item.productId === productId && item.color === color);
+  findItemIndex(productId) {
+    return this.items.findIndex((item) => item.productId === productId);
   }
 
   subscribe(listener) {
@@ -577,13 +710,21 @@ class CartManager {
     return this.items.reduce((sum, item) => sum + item.quantity, 0);
   }
 
-  addItem({ productId, quantity = 1, color = 'Unico' }) {
-    const normalized = this.normalizeItem({ productId, quantity, color });
+  getItemQuantity(productId) {
+    const idx = this.findItemIndex(String(productId));
+    if (idx < 0) {
+      return 0;
+    }
+    return this.items[idx].quantity;
+  }
+
+  addItem({ productId, quantity = 1 }) {
+    const normalized = this.normalizeItem({ productId, quantity });
     if (!normalized) {
       return;
     }
 
-    const idx = this.findItemIndex(normalized.productId, normalized.color);
+    const idx = this.findItemIndex(normalized.productId);
     if (idx >= 0) {
       this.items[idx] = {
         ...this.items[idx],
@@ -597,18 +738,18 @@ class CartManager {
     this.emit();
   }
 
-  updateItemQuantity({ productId, color = 'Unico', quantity }) {
+  updateItemQuantity({ productId, quantity }) {
     const normalizedQty = Number.parseInt(quantity, 10);
     if (Number.isNaN(normalizedQty)) {
       return;
     }
 
     if (normalizedQty <= 0) {
-      this.removeItem({ productId, color });
+      this.removeItem({ productId });
       return;
     }
 
-    const idx = this.findItemIndex(String(productId), String(color));
+    const idx = this.findItemIndex(String(productId));
     if (idx < 0) {
       return;
     }
@@ -622,8 +763,8 @@ class CartManager {
     this.emit();
   }
 
-  removeItem({ productId, color = 'Unico' }) {
-    const idx = this.findItemIndex(String(productId), String(color));
+  removeItem({ productId }) {
+    const idx = this.findItemIndex(String(productId));
     if (idx < 0) {
       return;
     }
@@ -653,6 +794,7 @@ class CartManager {
           ...item,
           title: product.title,
           image: imageManager.normalize(product.img),
+          stock: Number.isFinite(product.stock) ? Math.max(0, Number.parseInt(product.stock, 10) || 0) : 0,
           unitPrice,
           subtotal: unitPrice * item.quantity,
         };
@@ -661,34 +803,222 @@ class CartManager {
   }
 }
 
-/** Historial simple de pedidos generado desde el carrito y guardado en localStorage. */
+/** Cliente de pedidos contra API MySQL. */
 class OrderManager {
-  constructor({ storageKey = 'hunnab_orders' } = {}) {
+  constructor({ apiBase = process.env.REACT_APP_API_BASE || '' } = {}) {
+    this.apiBase = apiBase;
+  }
+
+  buildApiUrl(path) {
+    if (!this.apiBase) {
+      return path;
+    }
+    return `${this.apiBase}${path}`;
+  }
+
+  async parseResponse(response, defaultError) {
+    const responseStatus = Number(response?.status || 0);
+    const rawBody = await response.text().catch(() => '');
+    const bodyText = String(rawBody || '');
+    const trimmedBody = bodyText.trim();
+
+    const isHtmlResponse = /^<!doctype html>/i.test(trimmedBody) || /^<html/i.test(trimmedBody);
+    const isMissingRoute = /Cannot (GET|POST|PUT|PATCH|DELETE)\s+\/api\//i.test(bodyText);
+    const isProxyConnectionError =
+      /Error occurred while trying to proxy/i.test(bodyText) ||
+      /ECONNREFUSED/i.test(bodyText);
+
+    if (!response.ok && (isMissingRoute || isHtmlResponse || isProxyConnectionError)) {
+      if (isMissingRoute || responseStatus === 404) {
+        return {
+          ok: false,
+          error: 'La API no tiene activa esta ruta. Reinicia el backend con "npm run api".',
+        };
+      }
+      if (isProxyConnectionError || responseStatus === 502 || responseStatus === 503 || responseStatus === 504) {
+        return {
+          ok: false,
+          error: 'No hay conexion con la API (puerto 4000). Inicia el backend con "npm run api".',
+        };
+      }
+    }
+
+    try {
+      const data = bodyText ? JSON.parse(bodyText) : {};
+      if (!response.ok) {
+        return { ok: false, error: data?.error || defaultError };
+      }
+      return { ok: true, data };
+    } catch (error) {
+      if (!response.ok) {
+        return { ok: false, error: defaultError };
+      }
+      return { ok: true, data: {} };
+    }
+  }
+
+  async createFromCart({ user, items, total }) {
+    if (!user || !Array.isArray(items) || items.length === 0) {
+      return { ok: false, error: 'No hay datos suficientes para crear el pedido.' };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/orders/create'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user: {
+            id: user.id ?? null,
+            usuario: user.usuario ?? '',
+            nombre: user.nombre ?? user.usuario ?? '',
+          },
+          items: items.map((item) => ({
+            productId: item.productId,
+            title: item.title,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+          total,
+        }),
+      });
+
+      const result = await this.parseResponse(response, 'No se pudo guardar el pedido en MySQL.');
+      if (!result.ok || !result.data?.order) {
+        return { ok: false, error: result.error || 'No se pudo guardar el pedido en MySQL.' };
+      }
+      return { ok: true, order: result.data.order };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+
+  async getUserOrders(user) {
+    const userId = Number.parseInt(user?.id, 10);
+    const username = String(user?.usuario || '').trim();
+    if ((!Number.isInteger(userId) || userId <= 0) && !username) {
+      return [];
+    }
+
+    try {
+      const query = new URLSearchParams();
+      if (Number.isInteger(userId) && userId > 0) {
+        query.set('userId', String(userId));
+      }
+      if (username) {
+        query.set('usuario', username);
+      }
+      const response = await fetch(this.buildApiUrl(`/api/orders/user-orders?${query.toString()}`));
+      const result = await this.parseResponse(response, 'No se pudieron cargar tus pedidos.');
+      if (!result.ok) {
+        return [];
+      }
+      return Array.isArray(result.data?.orders) ? result.data.orders : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getAdminOrders(user) {
+    const userId = Number.parseInt(user?.id, 10);
+    const username = String(user?.usuario || '').trim();
+    if (!Number.isInteger(userId) || userId <= 0 || !username) {
+      return [];
+    }
+
+    try {
+      const query = new URLSearchParams({
+        userId: String(userId),
+        usuario: username,
+      });
+      const response = await fetch(this.buildApiUrl(`/api/orders/admin-orders?${query.toString()}`));
+      const result = await this.parseResponse(response, 'No se pudieron cargar los pedidos del panel admin.');
+      if (!result.ok) {
+        return [];
+      }
+      return Array.isArray(result.data?.orders) ? result.data.orders : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async updateOrderStatus({ adminUser, orderId, status }) {
+    const adminUserId = Number.parseInt(adminUser?.id, 10);
+    const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
+    const adminUsername = String(adminUser?.usuario || '').trim();
+    const parsedOrderId = Number.parseInt(orderId, 10);
+    const normalizedStatus = String(status || '').trim().toUpperCase().replace(/\s+/g, ' ');
+    const allowedStatuses = ['PENDIENTE', 'EN PREPARACION', 'ENVIADO'];
+
+    if (!adminUsername || !Number.isInteger(parsedOrderId) || parsedOrderId <= 0) {
+      return { ok: false, error: 'Datos incompletos para actualizar el pedido.' };
+    }
+    if (!allowedStatuses.includes(normalizedStatus)) {
+      return { ok: false, error: 'Estado de pedido no permitido.' };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/orders/admin-update-status'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUserId: hasValidAdminUserId ? adminUserId : null,
+          adminUsername,
+          orderId: parsedOrderId,
+          status: normalizedStatus,
+        }),
+      });
+      const result = await this.parseResponse(response, 'No se pudo actualizar el estado del pedido.');
+      if (!result.ok) {
+        return { ok: false, error: result.error || 'No se pudo actualizar el estado del pedido.' };
+      }
+      return { ok: true, order: result.data?.order || null };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+}
+
+/** Flujo de pago/checkout con simulacion y persistencia local del resumen. */
+class CheckoutManager {
+  constructor({
+    cartManager,
+    catalogModel,
+    imageManager,
+    orderManager,
+    storageKey = 'hunnab_checkout',
+  }) {
+    this.cartManager = cartManager;
+    this.catalogModel = catalogModel;
+    this.imageManager = imageManager;
+    this.orderManager = orderManager;
     this.storageKey = storageKey;
-    this.orders = this.readFromStorage();
+    this.state = this.readState();
   }
 
   isBrowser() {
     return typeof window !== 'undefined' && Boolean(window.localStorage);
   }
 
-  readFromStorage() {
+  readState() {
     if (!this.isBrowser()) {
-      return [];
+      return { draft: null, receipt: null };
     }
 
     try {
       const raw = window.localStorage.getItem(this.storageKey);
       if (!raw) {
-        return [];
+        return { draft: null, receipt: null };
       }
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return [];
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { draft: null, receipt: null };
       }
-      return parsed.filter(Boolean);
+      return {
+        draft: parsed.draft && typeof parsed.draft === 'object' ? parsed.draft : null,
+        receipt: parsed.receipt && typeof parsed.receipt === 'object' ? parsed.receipt : null,
+      };
     } catch (error) {
-      return [];
+      return { draft: null, receipt: null };
     }
   }
 
@@ -696,56 +1026,142 @@ class OrderManager {
     if (!this.isBrowser()) {
       return;
     }
-    window.localStorage.setItem(this.storageKey, JSON.stringify(this.orders));
+    window.localStorage.setItem(this.storageKey, JSON.stringify(this.state));
   }
 
-  createFromCart({ user, items, total }) {
-    if (!user || !Array.isArray(items) || items.length === 0) {
-      return null;
-    }
+  getDraft() {
+    return this.state.draft;
+  }
 
-    const order = {
-      id: `PED-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      status: 'Confirmado',
-      user: {
-        id: user.id ?? null,
-        usuario: user.usuario ?? '',
-        nombre: user.nombre ?? user.usuario ?? '',
-      },
-      total: Number.isFinite(total) ? total : 0,
-      items: items.map((item) => ({
-        productId: item.productId,
-        title: item.title,
-        quantity: item.quantity,
-        color: item.color,
-        unitPrice: item.unitPrice,
-        subtotal: item.subtotal,
-      })),
-    };
+  getReceipt() {
+    return this.state.receipt;
+  }
 
-    this.orders.unshift(order);
+  clear() {
+    this.state = { draft: null, receipt: null };
     this.persist();
-    return order;
   }
 
-  getUserOrders(user) {
-    if (!user) {
-      return [];
+  prepareFromCart({ user }) {
+    if (!user || !user.usuario) {
+      return { ok: false, error: 'Inicia sesion para continuar al checkout.' };
     }
 
-    const userId = user.id ?? null;
-    const username = String(user.usuario || '').trim();
+    const items = this.cartManager.getDetailedItems(this.catalogModel, this.imageManager);
+    if (!Array.isArray(items) || items.length === 0) {
+      return { ok: false, error: 'Tu carrito esta vacio.' };
+    }
 
-    return this.orders.filter((order) => {
-      if (!order?.user) {
-        return false;
+    const hasStockConflict = items.some((item) => item.stock <= 0 || item.quantity > item.stock);
+    if (hasStockConflict) {
+      return { ok: false, error: 'Hay productos con stock insuficiente.' };
+    }
+
+    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    this.state = {
+      draft: {
+        createdAt: new Date().toISOString(),
+        user: {
+          id: user.id ?? null,
+          usuario: user.usuario ?? '',
+          nombre: user.nombre ?? user.usuario ?? '',
+        },
+        items: items.map((item) => ({
+          productId: item.productId,
+          title: item.title,
+          image: item.image,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal,
+          stock: item.stock,
+        })),
+        total,
+      },
+      receipt: null,
+    };
+    this.persist();
+    return { ok: true, draft: this.state.draft };
+  }
+
+  validateCheckoutPayload({ shipping, payment }) {
+    const fullName = String(shipping?.fullName || '').trim();
+    const email = String(shipping?.email || '').trim();
+    const address = String(shipping?.address || '').trim();
+    const city = String(shipping?.city || '').trim();
+    const state = String(shipping?.state || '').trim();
+    const postalCode = String(shipping?.postalCode || '').trim();
+    const method = String(payment?.method || '').trim();
+
+    if (!fullName || !email || !address || !city || !state || !postalCode) {
+      return { ok: false, error: 'Completa todos los datos de envio.' };
+    }
+    if (!method) {
+      return { ok: false, error: 'Selecciona un metodo de pago.' };
+    }
+
+    if (method === 'tarjeta') {
+      const cardNumber = String(payment?.cardNumber || '').replace(/\s+/g, '');
+      const cardHolder = String(payment?.cardHolder || '').trim();
+      const cardExpiry = String(payment?.cardExpiry || '').trim();
+      const cardCvv = String(payment?.cardCvv || '').trim();
+      if (cardNumber.length < 12 || !cardHolder || !cardExpiry || cardCvv.length < 3) {
+        return { ok: false, error: 'Completa los datos de la tarjeta para simular el pago.' };
       }
-      if (userId !== null && order.user.id !== null) {
-        return Number(order.user.id) === Number(userId);
-      }
-      return String(order.user.usuario || '').trim() === username;
+    }
+
+    return { ok: true };
+  }
+
+  async processSimulatedPayment({ shipping, payment }) {
+    const draft = this.getDraft();
+    if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) {
+      return { ok: false, error: 'No hay un checkout activo para procesar.' };
+    }
+
+    const validation = this.validateCheckoutPayload({ shipping, payment });
+    if (!validation.ok) {
+      return validation;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
+    const orderResult = await this.orderManager.createFromCart({
+      user: draft.user,
+      items: draft.items,
+      total: draft.total,
     });
+    if (!orderResult?.ok || !orderResult.order) {
+      return { ok: false, error: orderResult?.error || 'No se pudo crear el pedido.' };
+    }
+
+    const stockResult = this.catalogModel.consumeStockForOrder(draft.items);
+    if (!stockResult?.ok) {
+      return { ok: false, error: stockResult?.error || 'No se pudo actualizar el stock.' };
+    }
+
+    this.cartManager.clear();
+    this.state = {
+      draft: null,
+      receipt: {
+        paidAt: new Date().toISOString(),
+        shipping: {
+          fullName: String(shipping.fullName || '').trim(),
+          email: String(shipping.email || '').trim(),
+          phone: String(shipping.phone || '').trim(),
+          address: String(shipping.address || '').trim(),
+          city: String(shipping.city || '').trim(),
+          state: String(shipping.state || '').trim(),
+          postalCode: String(shipping.postalCode || '').trim(),
+          shippingMethod: String(shipping.shippingMethod || 'estandar').trim(),
+        },
+        payment: {
+          method: String(payment.method || '').trim(),
+        },
+        order: orderResult.order,
+      },
+    };
+    this.persist();
+    return { ok: true, receipt: this.state.receipt };
   }
 }
 
@@ -1036,6 +1452,21 @@ class AuthManager {
     return { ok: true, paymentMethods: nextMethods };
   }
 
+  clearAccountSettings(user) {
+    const key = this.getUserSettingsKey(user);
+    if (!key) {
+      return;
+    }
+
+    const store = this.readAccountSettingsStore();
+    if (!Object.prototype.hasOwnProperty.call(store, key)) {
+      return;
+    }
+
+    delete store[key];
+    this.writeAccountSettingsStore(store);
+  }
+
   // Operaciones remotas de autenticacion.
   async register({ nombre, correo, usuario, password }) {
     const normalizedUser = String(usuario || '').trim();
@@ -1110,6 +1541,122 @@ class AuthManager {
     }
   }
 
+  async changePassword({ user, currentPassword, newPassword }) {
+    const userId = Number.parseInt(user?.id, 10);
+    const hasValidUserId = Number.isInteger(userId) && userId > 0;
+    const username = String(user?.usuario || '').trim();
+    const normalizedCurrentPassword = String(currentPassword || '').trim();
+    const normalizedNewPassword = String(newPassword || '').trim();
+    const passwordPattern = /^(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,10}$/;
+
+    if (!username) {
+      return { ok: false, error: 'No hay sesion valida para cambiar la contrasena.' };
+    }
+    if (!normalizedCurrentPassword || !normalizedNewPassword) {
+      return { ok: false, error: 'Completa contrasena actual y nueva contrasena.' };
+    }
+    if (!passwordPattern.test(normalizedNewPassword)) {
+      return {
+        ok: false,
+        error:
+          'La contrasena debe tener entre 6 y 10 caracteres, incluir al menos un signo especial (!@#$%^&*) y solo puede contener letras (sin enie ni acentos), numeros y esos signos.',
+      };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/auth/change-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: hasValidUserId ? userId : null,
+          usuario: username,
+          currentPassword: normalizedCurrentPassword,
+          newPassword: normalizedNewPassword,
+        }),
+      });
+
+      const rawBody = await response.text();
+      let data = {};
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody);
+        } catch (parseError) {
+          data = {};
+        }
+      }
+      if (!response.ok) {
+        if (
+          response.status === 404 ||
+          /Cannot POST \/api\/auth\/change-password/i.test(rawBody)
+        ) {
+          return {
+            ok: false,
+            error: 'La API no tiene activa la ruta para cambiar contrasena. Reinicia el backend con npm run api.',
+          };
+        }
+        return { ok: false, error: data.error || 'No se pudo cambiar la contrasena.' };
+      }
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+
+  async deleteAccount({ user, password }) {
+    const userId = Number.parseInt(user?.id, 10);
+    const hasValidUserId = Number.isInteger(userId) && userId > 0;
+    const username = String(user?.usuario || '').trim();
+    const normalizedPassword = String(password || '').trim();
+
+    if (!username) {
+      return { ok: false, error: 'No hay sesion valida para eliminar la cuenta.' };
+    }
+    if (!normalizedPassword) {
+      return { ok: false, error: 'Ingresa tu contrasena actual para eliminar la cuenta.' };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/auth/delete-account'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: hasValidUserId ? userId : null,
+          usuario: username,
+          password: normalizedPassword,
+        }),
+      });
+
+      const rawBody = await response.text();
+      let data = {};
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody);
+        } catch (parseError) {
+          data = {};
+        }
+      }
+
+      if (!response.ok) {
+        if (
+          response.status === 404 ||
+          /Cannot POST \/api\/auth\/delete-account/i.test(rawBody)
+        ) {
+          return {
+            ok: false,
+            error: 'La API no tiene activa la ruta para eliminar cuenta. Reinicia el backend con npm run api.',
+          };
+        }
+        return { ok: false, error: data.error || 'No se pudo eliminar la cuenta.' };
+      }
+
+      this.clearAccountSettings(user);
+      this.logout();
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+
   logout() {
     this.setSessionActive(false);
   }
@@ -1130,7 +1677,6 @@ class ApplicationMain {
       products: PRODUCTS,
       homeCategoryKeys: HOME_CATEGORY_KEYS,
       defaultCategoryTabs: DEFAULT_CATEGORY_TABS,
-      defaultProductColors: DEFAULT_PRODUCT_COLORS,
     });
   }
 
@@ -1158,6 +1704,15 @@ class ApplicationMain {
     return new OrderManager();
   }
 
+  buildCheckoutManager({ cartManager, catalogModel, imageManager, orderManager }) {
+    return new CheckoutManager({
+      cartManager,
+      catalogModel,
+      imageManager,
+      orderManager,
+    });
+  }
+
   buildAuthManager() {
     return new AuthManager();
   }
@@ -1171,6 +1726,12 @@ class ApplicationMain {
     const searchManager = this.buildSearchManager(catalogModel);
     const cartManager = this.buildCartManager();
     const orderManager = this.buildOrderManager();
+    const checkoutManager = this.buildCheckoutManager({
+      cartManager,
+      catalogModel,
+      imageManager,
+      orderManager,
+    });
     const authManager = this.buildAuthManager();
 
     return Object.freeze({
@@ -1181,6 +1742,7 @@ class ApplicationMain {
       search: searchManager,
       cart: cartManager,
       orders: orderManager,
+      checkout: checkoutManager,
       auth: authManager,
     });
   }

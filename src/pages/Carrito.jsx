@@ -15,13 +15,18 @@ function CartPage({ app }) {
     () => items.reduce((sum, item) => sum + item.subtotal, 0),
     [items]
   );
+  const hasStockConflict = items.some((item) => item.stock <= 0 || item.quantity > item.stock);
 
   /** Actualiza cantidad de una linea del carrito. */
   const updateQuantity = (item, quantity) => {
+    const maxStock = Math.max(0, Number.parseInt(item.stock, 10) || 0);
+    if (maxStock <= 0) {
+      return;
+    }
+    const boundedQty = Math.max(1, Math.min(maxStock, Number.parseInt(quantity, 10) || 1));
     app.cart.updateItemQuantity({
       productId: item.productId,
-      color: item.color,
-      quantity,
+      quantity: boundedQty,
     });
   };
 
@@ -34,8 +39,13 @@ function CartPage({ app }) {
     updateQuantity(item, next);
   };
 
-  /** Convierte el carrito actual en un pedido y limpia el carrito. */
-  const finalizeOrder = () => {
+  /** Abre checkout para capturar envio/pago y procesar pedido simulado. */
+  const goToCheckout = () => {
+    if (hasStockConflict) {
+      window.alert('Hay productos con stock insuficiente. Ajusta cantidades antes de finalizar.');
+      return;
+    }
+
     const sessionUser = app.auth?.getSessionUser?.();
     if (!sessionUser) {
       window.alert('Inicia sesion para generar tu pedido.');
@@ -43,20 +53,17 @@ function CartPage({ app }) {
       return;
     }
 
-    const createdOrder = app.orders?.createFromCart?.({
-      user: sessionUser,
-      items,
-      total,
-    });
-
-    if (!createdOrder) {
-      window.alert('No se pudo generar el pedido.');
+    if (typeof app.checkout?.prepareFromCart !== 'function') {
+      window.alert('No esta disponible el checkout en esta version.');
       return;
     }
 
-    app.cart.clear();
-    window.alert(`Pedido ${createdOrder.id} creado correctamente.`);
-    window.location.hash = '#/cuenta';
+    const prepareResult = app.checkout.prepareFromCart({ user: sessionUser });
+    if (!prepareResult?.ok) {
+      window.alert(prepareResult?.error || 'No se pudo abrir checkout.');
+      return;
+    }
+    window.location.hash = '#/checkout';
   };
 
   // Estado vacio
@@ -82,13 +89,18 @@ function CartPage({ app }) {
       <div className="cart-layout">
         <section className="cart-items" aria-label="Productos del carrito">
           {items.map((item) => (
-            <article key={`${item.productId}-${item.color}`} className="cart-row">
+            <article key={item.productId} className="cart-row">
               <img src={item.image} alt={item.title} className="cart-row__image" />
 
               <div className="cart-row__content">
                 <h3>{item.title}</h3>
-                <p>Color: {item.color}</p>
                 <strong>{app.currency.formatMXN(item.unitPrice)}</strong>
+                <p className={`cart-stock ${item.stock <= 0 ? 'is-out' : ''}`}>
+                  {item.stock <= 0 ? 'Sin stock disponible' : `Stock disponible: ${item.stock}`}
+                </p>
+                {item.quantity > item.stock ? (
+                  <p className="cart-stock-warning">La cantidad actual supera el stock.</p>
+                ) : null}
               </div>
 
               <div className="cart-row__actions">
@@ -109,7 +121,7 @@ function CartPage({ app }) {
                 <button
                   type="button"
                   className="cart-remove"
-                  onClick={() => app.cart.removeItem({ productId: item.productId, color: item.color })}
+                  onClick={() => app.cart.removeItem({ productId: item.productId })}
                 >
                   Eliminar
                 </button>
@@ -136,9 +148,17 @@ function CartPage({ app }) {
             <span>Total</span>
             <strong>{app.currency.formatMXN(total)}</strong>
           </div>
-          <button className="btn primary" type="button" onClick={finalizeOrder}>
-            Finalizar pedido
+          <button
+            className="btn primary"
+            type="button"
+            onClick={goToCheckout}
+            disabled={hasStockConflict}
+          >
+            Finalizar compra
           </button>
+          {hasStockConflict ? (
+            <p className="cart-stock-warning">Corrige productos sin stock para poder finalizar.</p>
+          ) : null}
           <button className="btn link" type="button" onClick={() => app.cart.clear()}>
             Vaciar carrito
           </button>
