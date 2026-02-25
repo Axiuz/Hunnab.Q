@@ -19,6 +19,85 @@ const PASSWORD_PATTERN = /^(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,10}$/;
 const PASSWORD_RULES_ERROR =
   'La contrasena debe tener entre 6 y 10 caracteres, incluir al menos un signo especial (!@#$%^&*) y solo puede contener letras (sin enie ni acentos), numeros y esos signos.';
 const ORDER_STATUS_VALUES = new Set(['PENDIENTE', 'EN PREPARACION', 'ENVIADO']);
+const BASE_CATALOG_PRODUCTS = [
+  {
+    nombre: 'Collar Aquamarina',
+    descripcion: 'Collar de la coleccion base Hunnab.Q.',
+    precio: 250,
+    stock: 15,
+    categoria: 'COLLAR_HOMBRE',
+  },
+  {
+    nombre: 'Collar Nautilus',
+    descripcion: 'Collar de la coleccion base Hunnab.Q.',
+    precio: 270,
+    stock: 12,
+    categoria: 'COLLAR_HOMBRE',
+  },
+  {
+    nombre: 'Collar Libelula',
+    descripcion: 'Collar de la coleccion base Hunnab.Q.',
+    precio: 170,
+    stock: 18,
+    categoria: 'COLLAR_HOMBRE',
+  },
+  {
+    nombre: 'Collar Amatista',
+    descripcion: 'Collar de la coleccion base Hunnab.Q.',
+    precio: 280,
+    stock: 10,
+    categoria: 'COLLAR_MUJER',
+  },
+  {
+    nombre: 'Collar Oro',
+    descripcion: 'Collar de la coleccion base Hunnab.Q.',
+    precio: 310,
+    stock: 8,
+    categoria: 'COLLAR_MUJER',
+  },
+  {
+    nombre: 'Arracadas Clasicas',
+    descripcion: 'Arete de la coleccion base Hunnab.Q.',
+    precio: 260,
+    stock: 14,
+    categoria: 'ARETE',
+  },
+  {
+    nombre: 'Arracadas Chunky',
+    descripcion: 'Arete de la coleccion base Hunnab.Q.',
+    precio: 320,
+    stock: 9,
+    categoria: 'ARETE',
+  },
+  {
+    nombre: 'Anillo Modelo',
+    descripcion: 'Anillo de la coleccion base Hunnab.Q.',
+    precio: 290,
+    stock: 11,
+    categoria: 'ANILLO',
+  },
+  {
+    nombre: 'Anillo Muestra',
+    descripcion: 'Anillo de la coleccion base Hunnab.Q.',
+    precio: 260,
+    stock: 16,
+    categoria: 'ANILLO',
+  },
+  {
+    nombre: 'Pulsera Piedra Volcanica',
+    descripcion: 'Pulsera de la coleccion base Hunnab.Q.',
+    precio: 180,
+    stock: 20,
+    categoria: 'PULSERA_HOMBRE',
+  },
+  {
+    nombre: 'Pulsera Onyx',
+    descripcion: 'Pulsera de la coleccion base Hunnab.Q.',
+    precio: 210,
+    stock: 13,
+    categoria: 'PULSERA_MUJER',
+  },
+];
 
 // Middlewares globales
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
@@ -94,6 +173,46 @@ async function ensureProductsSchema() {
       fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+}
+
+/**
+ * Inserta productos base del catalogo si aun no existen por nombre.
+ * No sobrescribe cambios manuales ya existentes en la BD.
+ */
+async function ensureBaseProductsSeeded() {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    for (const product of BASE_CATALOG_PRODUCTS) {
+      await connection.query(
+        `
+          INSERT INTO producto (nombre, descripcion, precio, stock, categoria)
+          SELECT ?, ?, ?, ?, ?
+          FROM DUAL
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM producto
+            WHERE nombre = ?
+            LIMIT 1
+          )
+        `,
+        [
+          product.nombre,
+          product.descripcion,
+          Number(product.precio),
+          Number.parseInt(product.stock, 10),
+          product.categoria,
+          product.nombre,
+        ]
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 /**
@@ -235,6 +354,36 @@ function inferProductCategory(item) {
     return 'ANILLO';
   }
   return 'ANILLO';
+}
+
+function mapCrudCategoryToDb(categoryKey, fallbackTitle = '') {
+  const normalized = String(categoryKey || '').trim().toLowerCase();
+  if (normalized.includes('arete')) {
+    return 'ARETE';
+  }
+  if (normalized.startsWith('anillo') || normalized.includes('/anillo')) {
+    return 'ANILLO';
+  }
+  if (normalized.startsWith('collares') || normalized.includes('collar')) {
+    if (normalized.includes('dama')) {
+      return 'COLLAR_MUJER';
+    }
+    if (normalized.includes('caballero') || normalized.includes('hombre')) {
+      return 'COLLAR_HOMBRE';
+    }
+    return 'COLLAR_HOMBRE';
+  }
+  if (normalized.startsWith('pulseras') || normalized.includes('pulsera')) {
+    if (normalized.includes('dama')) {
+      return 'PULSERA_MUJER';
+    }
+    if (normalized.includes('caballero') || normalized.includes('hombre')) {
+      return 'PULSERA_HOMBRE';
+    }
+    return 'PULSERA_MUJER';
+  }
+
+  return inferProductCategory({ title: fallbackTitle, productId: normalized });
 }
 
 async function resolveDbProductId(connection, item) {
@@ -462,6 +611,109 @@ app.post('/api/auth/login', async (req, res) => {
     // eslint-disable-next-line no-console
     console.error('Error en /api/auth/login:', error);
     res.status(500).json({ ok: false, error: 'Error validando login en MySQL.' });
+  }
+});
+
+// Guarda en MySQL el alta/edicion realizada desde el CRUD local del panel admin.
+app.post('/api/products/admin-create', async (req, res) => {
+  const adminUserId = Number.parseInt(req.body?.adminUserId, 10);
+  const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
+  const adminUsername = String(req.body?.adminUsername || '').trim();
+  const dbProductId = Number.parseInt(req.body?.product?.dbProductId, 10);
+  const hasValidDbProductId = Number.isInteger(dbProductId) && dbProductId > 0;
+  const lookupTitleRaw = req.body?.product?.lookupTitle;
+  const title = String(req.body?.product?.title || '').trim();
+  const lookupTitle = String(lookupTitleRaw || title).trim();
+  const price = Number.parseFloat(req.body?.product?.price);
+  const stock = Number.parseInt(req.body?.product?.stock, 10);
+  const categoryKey = String(req.body?.product?.categoryKey || '').trim();
+  const description = String(req.body?.product?.description || 'Producto creado desde CRUD local.').trim();
+
+  if (!adminUsername || !title || !Number.isFinite(price) || !Number.isInteger(stock) || stock < 0) {
+    res.status(400).json({ ok: false, error: 'Datos incompletos para guardar producto en MySQL.' });
+    return;
+  }
+
+  try {
+    const adminLookupQuery = hasValidAdminUserId
+      ? 'SELECT tipo_usuario FROM usuario WHERE id_usuario = ? AND usuario = ? LIMIT 1'
+      : 'SELECT tipo_usuario FROM usuario WHERE usuario = ? LIMIT 1';
+    const adminLookupParams = hasValidAdminUserId ? [adminUserId, adminUsername] : [adminUsername];
+    const [adminRows] = await pool.query(adminLookupQuery, adminLookupParams);
+    if (adminRows.length === 0) {
+      res.status(404).json({ ok: false, error: 'No se encontro el usuario administrador.' });
+      return;
+    }
+
+    const role = String(adminRows[0].tipo_usuario || '').trim().toUpperCase();
+    if (role !== 'ADMIN' && role !== 'ADMINISTRADOR') {
+      res.status(403).json({ ok: false, error: 'No tienes permisos para guardar productos.' });
+      return;
+    }
+
+    const dbCategory = mapCrudCategoryToDb(categoryKey, title);
+    let existingId = null;
+    if (hasValidDbProductId) {
+      const [idRows] = await pool.query(
+        'SELECT id_producto FROM producto WHERE id_producto = ? LIMIT 1',
+        [dbProductId]
+      );
+      if (idRows.length > 0) {
+        existingId = Number(idRows[0].id_producto || 0);
+      }
+    }
+
+    if (!existingId && lookupTitle) {
+      const [lookupRows] = await pool.query(
+        'SELECT id_producto FROM producto WHERE nombre = ? LIMIT 1',
+        [lookupTitle]
+      );
+      if (lookupRows.length > 0) {
+        existingId = Number(lookupRows[0].id_producto || 0);
+      }
+    }
+
+    if (!existingId && title && title !== lookupTitle) {
+      const [titleRows] = await pool.query(
+        'SELECT id_producto FROM producto WHERE nombre = ? LIMIT 1',
+        [title]
+      );
+      if (titleRows.length > 0) {
+        existingId = Number(titleRows[0].id_producto || 0);
+      }
+    }
+
+    if (existingId) {
+      await pool.query(
+        'UPDATE producto SET nombre = ?, descripcion = ?, precio = ?, stock = ?, categoria = ? WHERE id_producto = ?',
+        [title, description || null, Number(price.toFixed(2)), stock, dbCategory, existingId]
+      );
+      res.json({
+        ok: true,
+        product: { idProducto: existingId, nombre: title, categoria: dbCategory },
+        created: false,
+      });
+      return;
+    }
+
+    const [insertResult] = await pool.query(
+      'INSERT INTO producto (nombre, descripcion, precio, stock, categoria) VALUES (?, ?, ?, ?, ?)',
+      [title, description || null, Number(price.toFixed(2)), stock, dbCategory]
+    );
+
+    res.status(201).json({
+      ok: true,
+      product: {
+        idProducto: Number(insertResult.insertId || 0),
+        nombre: title,
+        categoria: dbCategory,
+      },
+      created: true,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error en /api/products/admin-create:', error);
+    res.status(500).json({ ok: false, error: 'Error guardando producto del CRUD en MySQL.' });
   }
 });
 
@@ -719,6 +971,7 @@ async function startServer() {
   try {
     await ensureUsersSchema();
     await ensureProductsSchema();
+    await ensureBaseProductsSeeded();
     await ensureOrdersSchema();
     app.listen(port, () => {
       // eslint-disable-next-line no-console

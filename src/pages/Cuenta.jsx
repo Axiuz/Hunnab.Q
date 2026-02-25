@@ -306,13 +306,97 @@ function AccountPage({ app }) {
     }
   };
 
+  const syncCreatedProductToMysql = async ({ createdProductId, createdForm }) => {
+    const adminUserId = Number.parseInt(usuarioActivo?.id, 10);
+    const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
+    const adminUsername = String(usuarioActivo?.usuario || '').trim();
+    if (!adminUsername) {
+      return { ok: false, error: 'No hay sesion de super usuario valida para sincronizar a MySQL.' };
+    }
+
+    const apiUrl = typeof app?.orders?.buildApiUrl === 'function'
+      ? app.orders.buildApiUrl('/api/products/admin-create')
+      : '/api/products/admin-create';
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUserId: hasValidAdminUserId ? adminUserId : null,
+          adminUsername,
+          product: {
+            localId: String(createdProductId || '').trim(),
+            title: String(createdForm?.title || '').trim(),
+            price: Number.parseFloat(createdForm?.price),
+            stock: Number.parseInt(createdForm?.stock, 10),
+            categoryKey: String(createdForm?.categoryKey || '').trim(),
+            description: 'Producto creado desde CRUD local.',
+          },
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { ok: false, error: data?.error || 'No se pudo guardar el producto en MySQL.' };
+      }
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  };
+
+  const syncUpdatedProductToMysql = async ({ productId, previousTitle, updatedDraft }) => {
+    const adminUserId = Number.parseInt(usuarioActivo?.id, 10);
+    const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
+    const adminUsername = String(usuarioActivo?.usuario || '').trim();
+    if (!adminUsername) {
+      return { ok: false, error: 'No hay sesion de super usuario valida para sincronizar a MySQL.' };
+    }
+
+    const nextCategoryKey = Array.isArray(updatedDraft?.categories) && updatedDraft.categories.length > 0
+      ? String(updatedDraft.categories[0] || '').trim()
+      : '';
+    const apiUrl = typeof app?.orders?.buildApiUrl === 'function'
+      ? app.orders.buildApiUrl('/api/products/admin-create')
+      : '/api/products/admin-create';
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUserId: hasValidAdminUserId ? adminUserId : null,
+          adminUsername,
+          product: {
+            localId: String(productId || '').trim(),
+            lookupTitle: String(previousTitle || '').trim(),
+            title: String(updatedDraft?.title || '').trim(),
+            price: Number.parseFloat(updatedDraft?.price),
+            stock: Number.parseInt(updatedDraft?.stock, 10),
+            categoryKey: nextCategoryKey,
+            description: 'Producto actualizado desde CRUD local.',
+          },
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { ok: false, error: data?.error || 'No se pudo actualizar el producto en MySQL.' };
+      }
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  };
+
   const onCreateProductFieldChange = (field) => (event) => {
     clearAdminMessages();
     setCreateProductForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
   // Acciones CRUD visuales desde panel admin.
-  const createProductFromAdmin = (event) => {
+  const createProductFromAdmin = async (event) => {
     event.preventDefault();
     clearAdminMessages();
     const result = app.catalog?.adminCreateProduct?.(createProductForm);
@@ -321,7 +405,17 @@ function AccountPage({ app }) {
       return;
     }
 
-    setAdminSuccess(`Producto creado: ${result.id}`);
+    const syncResult = await syncCreatedProductToMysql({
+      createdProductId: result.id,
+      createdForm: createProductForm,
+    });
+    if (!syncResult?.ok) {
+      setAdminError(`${syncResult?.error || 'No se pudo guardar en MySQL.'} El producto quedo creado localmente.`);
+      setAdminSuccess(`Producto creado localmente: ${result.id}`);
+    } else {
+      setAdminSuccess(`Producto creado: ${result.id} y guardado en MySQL.`);
+    }
+
     setCreateProductForm((prev) => ({
       ...prev,
       title: '',
@@ -377,7 +471,7 @@ function AccountPage({ app }) {
     }));
   };
 
-  const saveProductChanges = (productId, product, categories) => {
+  const saveProductChanges = async (productId, product, categories) => {
     clearAdminMessages();
     const draft = getProductDraft(productId, product, categories);
     const result = app.catalog?.adminUpdateProduct?.({
@@ -393,7 +487,19 @@ function AccountPage({ app }) {
       setAdminError(result?.error || 'No se pudo actualizar el producto.');
       return;
     }
-    setAdminSuccess('Producto actualizado.');
+
+    const syncResult = await syncUpdatedProductToMysql({
+      productId,
+      previousTitle: product?.title,
+      updatedDraft: draft,
+    });
+    if (!syncResult?.ok) {
+      setAdminError(`${syncResult?.error || 'No se pudo actualizar en MySQL.'} Los cambios quedaron guardados localmente.`);
+      setAdminSuccess('Producto actualizado localmente.');
+    } else {
+      setAdminSuccess('Producto actualizado y sincronizado en MySQL.');
+    }
+
     setEditDrafts((prev) => {
       const next = { ...prev };
       delete next[productId];
