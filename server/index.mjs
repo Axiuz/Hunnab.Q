@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { pool } from './db.mjs';
 import JWTManager from './jwt-manager.mjs';
+import { PayPalOrdersService } from './paypal-orders.mjs';
 
 dotenv.config();
 
@@ -110,6 +111,16 @@ const jwtManager = new JWTManager({
   audience: process.env.JWT_AUDIENCE || 'hunnab-web',
   expiresInSeconds: process.env.JWT_EXPIRES_IN_SECONDS || 86400,
 });
+
+const paypal = new PayPalOrdersService({
+  env: process.env.PAYPAL_ENV || 'sandbox',
+  clientId: process.env.PAYPAL_CLIENT_ID || '',
+  clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
+});
+const hasPayPalCredentials = Boolean(
+  String(process.env.PAYPAL_CLIENT_ID || '').trim() &&
+  String(process.env.PAYPAL_CLIENT_SECRET || '').trim()
+);
 
 // Verifica que la API esta viva.
 app.get('/api/health', (_req, res) => {
@@ -346,6 +357,80 @@ function normalizeOrderItems(items) {
     })
     .filter(Boolean);
 }
+
+// Crear orden de PayPal y devolver approvalUrl
+app.post('/api/paypal/create-order', jwtManager.authenticateRequired(), async (req, res) => {
+  try {
+    if (!hasPayPalCredentials) {
+      res.status(503).json({
+        ok: false,
+        error: 'PayPal no esta configurado en el servidor. Agrega PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET.',
+      });
+      return;
+    }
+
+    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
+    const currency = process.env.PAYPAL_CURRENCY || 'MXN';
+
+    // El front te manda total (por ejemplo draft.total)
+    const total = Number(req.body?.total);
+
+    const result = await paypal.createOrder({
+      currency,
+      total,
+      returnUrl: `${baseUrl}/#/checkout?paypal=success`,
+      cancelUrl: `${baseUrl}/#/checkout?paypal=cancel`,
+      brandName: 'Hunnab.Q',
+    });
+
+    if (!result?.id || !result?.approvalUrl) {
+      res.status(500).json({ ok: false, error: 'PayPal no devolvio approvalUrl.' });
+      return;
+    }
+
+    res.json({ ok: true, id: result.id, approvalUrl: result.approvalUrl });
+  } catch (error) {
+    console.error('Error en /api/paypal/create-order:', error);
+    res.status(500).json({ ok: false, error: 'No se pudo crear la orden de PayPal.' });
+  }
+});
+
+// Capturar orden PayPal
+app.post('/api/paypal/capture-order', jwtManager.authenticateRequired(), async (req, res) => {
+  try {
+    if (!hasPayPalCredentials) {
+      res.status(503).json({
+        ok: false,
+        error: 'PayPal no esta configurado en el servidor. Agrega PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET.',
+      });
+      return;
+    }
+
+    const orderId = String(req.body?.orderId || '').trim();
+    if (!orderId) {
+      res.status(400).json({ ok: false, error: 'orderId es obligatorio.' });
+      return;
+    }
+
+    const capture = await paypal.captureOrder(orderId);
+
+    // Validación mínima de “COMPLETED”
+    const status = String(capture?.status || '').toUpperCase();
+    if (status !== 'COMPLETED') {
+      res.status(400).json({
+        ok: false,
+        error: `Captura no completada (status=${capture?.status || '?'}).`,
+        capture,
+      });
+      return;
+    }
+
+    res.json({ ok: true, capture });
+  } catch (error) {
+    console.error('Error en /api/paypal/capture-order:', error);
+    res.status(500).json({ ok: false, error: 'No se pudo capturar el pago en PayPal.' });
+  }
+});
 
 function inferProductCategory(item) {
   const base = `${String(item?.productId || '')} ${String(item?.title || '')}`.toLowerCase();
