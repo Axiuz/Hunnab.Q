@@ -63,6 +63,43 @@ function CheckoutPage({ app }) {
     setPayment((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const setPaymentField = (field, value) => {
+    setError('');
+    setSuccess('');
+    setPayment((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const onCardNumberChange = (event) => {
+    let value = event.target.value.replace(/\D/g, '');
+    value = value.slice(0, 16);
+    value = value.replace(/(.{4})/g, '$1 ').trim();
+    setPaymentField('cardNumber', value);
+  };
+
+  const onCardExpiryChange = (event) => {
+    let value = event.target.value.replace(/\D/g, '').slice(0, 4);
+    if (value.length >= 3) {
+      value = `${value.slice(0, 2)}/${value.slice(2)}`;
+    }
+    setPaymentField('cardExpiry', value);
+  };
+
+  const onCardCvvChange = (event) => {
+    const value = event.target.value.replace(/\D/g, '').slice(0, 3);
+    setPaymentField('cardCvv', value);
+  };
+
+  const cardBrand = useMemo(() => {
+    const raw = (payment.cardNumber || '').replace(/\s/g, '');
+    if (raw.startsWith('4')) {
+      return { label: 'VISA', className: 'is-visa' };
+    }
+    if (/^5[1-5]/.test(raw)) {
+      return { label: 'MASTERCARD', className: 'is-mastercard' };
+    }
+    return { label: '', className: '' };
+  }, [payment.cardNumber]);
+
   const closePaidModal = () => {
     setShowPaidModal(false);
     if (pendingReceipt) {
@@ -259,30 +296,40 @@ function CheckoutPage({ app }) {
             {payment.method === 'tarjeta' ? (
               <div className="payment-body">
                 <div className="card-number-row">
-                  <input
+<input
                     type="text"
                     placeholder="4111 1111 1111 1111"
                     value={payment.cardNumber}
-                    onChange={onPaymentChange('cardNumber')}
+                    onChange={onCardNumberChange}
+                    inputMode="numeric"
+                    autoComplete="cc-number"
                     required
                   />
+                  {cardBrand.label ? (
+                    <span className={`card-brand ${cardBrand.className}`}>{cardBrand.label}</span>
+                  ) : null}
                 </div>
                 <div className="grid-2">
                   <input
                     type="text"
                     placeholder="12/28"
                     value={payment.cardExpiry}
-                    onChange={onPaymentChange('cardExpiry')}
+                    onChange={onCardExpiryChange}
+                    inputMode="numeric"
+                    autoComplete="cc-exp"
                     required
                   />
                   <input
                     type="password"
                     placeholder="123"
                     value={payment.cardCvv}
-                    onChange={onPaymentChange('cardCvv')}
+                    onChange={onCardCvvChange}
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
                     required
                   />
                 </div>
+
                 <input
                   type="text"
                   placeholder="Nombre del titular"

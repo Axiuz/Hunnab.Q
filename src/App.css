@@ -316,15 +316,25 @@
 
     /* Layout general */
     main{max-width:var(--max);margin:18px auto 70px;padding:0 16px}
-    .crumb{color:var(--muted);font-size:12px;margin-bottom:10px}
-    .hero{
-      border:1px solid var(--line);border-radius:var(--radius);
-      background:linear-gradient(180deg,#fff,var(--card));
-      padding:18px;margin-bottom:16px;
+    .page-back{margin:0 0 10px}
+    .back-nav-btn{
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--fg);
+      border-radius:12px;
+      padding:8px 12px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:18px;
+      transition:background .15s ease,border-color .15s ease;
     }
-    .hero h1{margin:0 0 6px;font-size:22px}
-    .hero p{margin:0;color:var(--muted);line-height:1.6}
-
+    .back-nav-btn:hover{background:var(--card)}
+    .back-nav-btn:focus-visible{
+      outline:2px solid #8b6b53;
+      outline-offset:2px;
+      border-color:#8b6b53;
+    }
+    
     /* Grid de categorias */
     .grid{
       display:grid;
@@ -626,12 +636,20 @@
       right:16px;
       top:12px;
       color:#1114d8;
-      font-size:31px;
+      font-size:15px;
       font-weight:800;
       letter-spacing:.02em;
       line-height:1;
       pointer-events:none;
     }
+    .card-brand.is-visa{
+      color:blue;
+      font-size:20px;}
+
+    .card-brand.is-mastercard{
+      color:red;
+      font: size 15px;}
+
     .checkout-pay-btn{
       margin-top:10px;
       width:100%;
