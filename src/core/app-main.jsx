@@ -805,8 +805,12 @@ class CartManager {
 
 /** Cliente de pedidos contra API MySQL. */
 class OrderManager {
-  constructor({ apiBase = process.env.REACT_APP_API_BASE || '' } = {}) {
+  constructor({
+    apiBase = process.env.REACT_APP_API_BASE || '',
+    authTokenStorageKey = 'hunnab_auth_token',
+  } = {}) {
     this.apiBase = apiBase;
+    this.authTokenStorageKey = authTokenStorageKey;
   }
 
   buildApiUrl(path) {
@@ -814,6 +818,24 @@ class OrderManager {
       return path;
     }
     return `${this.apiBase}${path}`;
+  }
+
+  readAuthToken() {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return '';
+    }
+    return String(window.localStorage.getItem(this.authTokenStorageKey) || '').trim();
+  }
+
+  getAuthorizationHeaders(baseHeaders = {}) {
+    const token = this.readAuthToken();
+    if (!token) {
+      return { ...baseHeaders };
+    }
+    return {
+      ...baseHeaders,
+      Authorization: `Bearer ${token}`,
+    };
   }
 
   async parseResponse(response, defaultError) {
@@ -843,6 +865,13 @@ class OrderManager {
       }
     }
 
+    if (!response.ok && (responseStatus === 401 || responseStatus === 403)) {
+      return {
+        ok: false,
+        error: 'Tu sesion expiro o no tiene permisos. Cierra sesion e inicia de nuevo.',
+      };
+    }
+
     try {
       const data = bodyText ? JSON.parse(bodyText) : {};
       if (!response.ok) {
@@ -865,7 +894,7 @@ class OrderManager {
     try {
       const response = await fetch(this.buildApiUrl('/api/orders/create'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           user: {
             id: user.id ?? null,
@@ -896,7 +925,7 @@ class OrderManager {
     const userId = Number.parseInt(user?.id, 10);
     const username = String(user?.usuario || '').trim();
     if ((!Number.isInteger(userId) || userId <= 0) && !username) {
-      return [];
+      return { ok: false, orders: [], error: 'No hay sesion valida para consultar pedidos.' };
     }
 
     try {
@@ -907,14 +936,20 @@ class OrderManager {
       if (username) {
         query.set('usuario', username);
       }
-      const response = await fetch(this.buildApiUrl(`/api/orders/user-orders?${query.toString()}`));
+      const response = await fetch(this.buildApiUrl(`/api/orders/user-orders?${query.toString()}`), {
+        headers: this.getAuthorizationHeaders(),
+      });
       const result = await this.parseResponse(response, 'No se pudieron cargar tus pedidos.');
       if (!result.ok) {
-        return [];
+        return { ok: false, orders: [], error: result.error || 'No se pudieron cargar tus pedidos.' };
       }
-      return Array.isArray(result.data?.orders) ? result.data.orders : [];
+      return {
+        ok: true,
+        orders: Array.isArray(result.data?.orders) ? result.data.orders : [],
+        error: '',
+      };
     } catch (error) {
-      return [];
+      return { ok: false, orders: [], error: 'No hay conexion con el servidor API.' };
     }
   }
 
@@ -922,7 +957,7 @@ class OrderManager {
     const userId = Number.parseInt(user?.id, 10);
     const username = String(user?.usuario || '').trim();
     if (!Number.isInteger(userId) || userId <= 0 || !username) {
-      return [];
+      return { ok: false, orders: [], error: 'No hay sesion valida para consultar pedidos de administrador.' };
     }
 
     try {
@@ -930,14 +965,20 @@ class OrderManager {
         userId: String(userId),
         usuario: username,
       });
-      const response = await fetch(this.buildApiUrl(`/api/orders/admin-orders?${query.toString()}`));
+      const response = await fetch(this.buildApiUrl(`/api/orders/admin-orders?${query.toString()}`), {
+        headers: this.getAuthorizationHeaders(),
+      });
       const result = await this.parseResponse(response, 'No se pudieron cargar los pedidos del panel admin.');
       if (!result.ok) {
-        return [];
+        return { ok: false, orders: [], error: result.error || 'No se pudieron cargar los pedidos del panel admin.' };
       }
-      return Array.isArray(result.data?.orders) ? result.data.orders : [];
+      return {
+        ok: true,
+        orders: Array.isArray(result.data?.orders) ? result.data.orders : [],
+        error: '',
+      };
     } catch (error) {
-      return [];
+      return { ok: false, orders: [], error: 'No hay conexion con el servidor API.' };
     }
   }
 
@@ -959,7 +1000,7 @@ class OrderManager {
     try {
       const response = await fetch(this.buildApiUrl('/api/orders/admin-update-status'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           adminUserId: hasValidAdminUserId ? adminUserId : null,
           adminUsername,
@@ -1192,11 +1233,13 @@ class AuthManager {
     apiBase = process.env.REACT_APP_API_BASE || '',
     sessionStorageKey = 'sesionActiva',
     sessionUserStorageKey = 'usuarioSesion',
+    authTokenStorageKey = 'hunnab_auth_token',
     accountSettingsStorageKey = 'hunnab_account_settings',
   } = {}) {
     this.apiBase = apiBase;
     this.sessionStorageKey = sessionStorageKey;
     this.sessionUserStorageKey = sessionUserStorageKey;
+    this.authTokenStorageKey = authTokenStorageKey;
     this.accountSettingsStorageKey = accountSettingsStorageKey;
   }
 
@@ -1246,6 +1289,36 @@ class AuthManager {
     window.localStorage.setItem(this.sessionUserStorageKey, JSON.stringify(user));
   }
 
+  readAuthToken() {
+    if (!this.isBrowser()) {
+      return '';
+    }
+    return String(window.localStorage.getItem(this.authTokenStorageKey) || '').trim();
+  }
+
+  writeAuthToken(token) {
+    if (!this.isBrowser()) {
+      return;
+    }
+    const safeToken = String(token || '').trim();
+    if (!safeToken) {
+      window.localStorage.removeItem(this.authTokenStorageKey);
+      return;
+    }
+    window.localStorage.setItem(this.authTokenStorageKey, safeToken);
+  }
+
+  getAuthorizationHeaders(baseHeaders = {}) {
+    const token = this.readAuthToken();
+    if (!token) {
+      return { ...baseHeaders };
+    }
+    return {
+      ...baseHeaders,
+      Authorization: `Bearer ${token}`,
+    };
+  }
+
   isSessionActive() {
     if (!this.isBrowser()) {
       return false;
@@ -1263,6 +1336,7 @@ class AuthManager {
     }
     window.localStorage.removeItem(this.sessionStorageKey);
     window.localStorage.removeItem(this.sessionUserStorageKey);
+    window.localStorage.removeItem(this.authTokenStorageKey);
   }
 
   readAccountSettingsStore() {
@@ -1523,7 +1597,7 @@ class AuthManager {
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.user) {
+      if (!response.ok || !data?.user || !data?.token) {
         return { ok: false, error: data.error || 'Usuario o contrasena incorrectos.' };
       }
 
@@ -1534,6 +1608,7 @@ class AuthManager {
         tipoUsuario: data.user.tipoUsuario ?? 'CUENTA',
       };
       this.writeSessionUser(sessionUser);
+      this.writeAuthToken(data.token);
       this.setSessionActive(true);
       return { ok: true, user: sessionUser };
     } catch (error) {
@@ -1566,7 +1641,7 @@ class AuthManager {
     try {
       const response = await fetch(this.buildApiUrl('/api/auth/change-password'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           userId: hasValidUserId ? userId : null,
           usuario: username,
@@ -1618,7 +1693,7 @@ class AuthManager {
     try {
       const response = await fetch(this.buildApiUrl('/api/auth/delete-account'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           userId: hasValidUserId ? userId : null,
           usuario: username,
@@ -1663,6 +1738,10 @@ class AuthManager {
 
   getSessionUser() {
     if (!this.isSessionActive()) {
+      return null;
+    }
+    if (!this.readAuthToken()) {
+      this.setSessionActive(false);
       return null;
     }
     return this.readSessionUser();

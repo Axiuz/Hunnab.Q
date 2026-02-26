@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import { pool } from './db.mjs';
+import JWTManager from './jwt-manager.mjs';
 
 dotenv.config();
 
@@ -102,6 +103,13 @@ const BASE_CATALOG_PRODUCTS = [
 // Middlewares globales
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
 app.use(express.json());
+
+const jwtManager = new JWTManager({
+  secret: process.env.JWT_SECRET || '',
+  issuer: process.env.JWT_ISSUER || 'hunnab-api',
+  audience: process.env.JWT_AUDIENCE || 'hunnab-web',
+  expiresInSeconds: process.env.JWT_EXPIRES_IN_SECONDS || 86400,
+});
 
 // Verifica que la API esta viva.
 app.get('/api/health', (_req, res) => {
@@ -472,10 +480,11 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // Endpoint para cambio de contrasena desde "Editar cuenta".
-app.post('/api/auth/change-password', async (req, res) => {
-  const userId = Number.parseInt(req.body?.userId, 10);
+app.post('/api/auth/change-password', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const userId = Number.parseInt(authUser?.id, 10);
   const hasValidUserId = Number.isInteger(userId) && userId > 0;
-  const usuario = String(req.body?.usuario || '').trim();
+  const usuario = String(authUser?.usuario || '').trim();
   const currentPassword = String(req.body?.currentPassword || '').trim();
   const newPassword = String(req.body?.newPassword || '').trim();
 
@@ -529,10 +538,11 @@ app.post('/api/auth/change-password', async (req, res) => {
 });
 
 // Endpoint para eliminar cuenta desde "Editar cuenta".
-app.post('/api/auth/delete-account', async (req, res) => {
-  const userId = Number.parseInt(req.body?.userId, 10);
+app.post('/api/auth/delete-account', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const userId = Number.parseInt(authUser?.id, 10);
   const hasValidUserId = Number.isInteger(userId) && userId > 0;
-  const usuario = String(req.body?.usuario || '').trim();
+  const usuario = String(authUser?.usuario || '').trim();
   const password = String(req.body?.password || '').trim();
 
   if (!usuario || !password) {
@@ -598,14 +608,22 @@ app.post('/api/auth/login', async (req, res) => {
       return;
     }
 
+    const authUser = {
+      id: Number(user.id_usuario || 0),
+      nombre: String(user.nombre || user.usuario || '').trim(),
+      usuario: String(user.usuario || '').trim(),
+      tipoUsuario: String(user.tipo_usuario || 'CUENTA').trim() || 'CUENTA',
+    };
+    const token = jwtManager.createAccessToken({
+      id: authUser.id,
+      usuario: authUser.usuario,
+      tipoUsuario: authUser.tipoUsuario,
+    });
+
     res.json({
       ok: true,
-      user: {
-        id: user.id_usuario,
-        nombre: user.nombre,
-        usuario: user.usuario,
-        tipoUsuario: user.tipo_usuario,
-      },
+      user: authUser,
+      token,
     });
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -615,10 +633,11 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Guarda en MySQL el alta/edicion realizada desde el CRUD local del panel admin.
-app.post('/api/products/admin-create', async (req, res) => {
-  const adminUserId = Number.parseInt(req.body?.adminUserId, 10);
+app.post('/api/products/admin-create', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const adminUserId = Number.parseInt(authUser?.id, 10);
   const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
-  const adminUsername = String(req.body?.adminUsername || '').trim();
+  const adminUsername = String(authUser?.usuario || '').trim();
   const dbProductId = Number.parseInt(req.body?.product?.dbProductId, 10);
   const hasValidDbProductId = Number.isInteger(dbProductId) && dbProductId > 0;
   const lookupTitleRaw = req.body?.product?.lookupTitle;
@@ -635,6 +654,11 @@ app.post('/api/products/admin-create', async (req, res) => {
   }
 
   try {
+    if (!jwtManager.isAdmin(authUser)) {
+      res.status(403).json({ ok: false, error: 'No tienes permisos para guardar productos.' });
+      return;
+    }
+
     const adminLookupQuery = hasValidAdminUserId
       ? 'SELECT tipo_usuario FROM usuario WHERE id_usuario = ? AND usuario = ? LIMIT 1'
       : 'SELECT tipo_usuario FROM usuario WHERE usuario = ? LIMIT 1';
@@ -718,13 +742,14 @@ app.post('/api/products/admin-create', async (req, res) => {
 });
 
 // Crea pedido con sus items y devuelve el ID persistido en MySQL.
-app.post('/api/orders/create', async (req, res) => {
-  const userId = Number.parseInt(req.body?.user?.id, 10);
+app.post('/api/orders/create', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const userId = Number.parseInt(authUser?.id, 10);
   const hasValidUserId = Number.isInteger(userId) && userId > 0;
-  const username = String(req.body?.user?.usuario || '').trim();
+  const username = String(authUser?.usuario || '').trim();
   const items = normalizeOrderItems(req.body?.items);
 
-  if (!username || items.length === 0) {
+  if (!hasValidUserId || !username || items.length === 0) {
     res.status(400).json({ ok: false, error: 'Usuario valido e items del pedido son obligatorios.' });
     return;
   }
@@ -813,18 +838,15 @@ app.post('/api/orders/create', async (req, res) => {
 });
 
 // Lista pedidos del usuario logueado (desde MySQL).
-app.get('/api/orders/user-orders', async (req, res) => {
-  const userId = Number.parseInt(req.query?.userId, 10);
-  const username = String(req.query?.usuario || '').trim();
-  if ((!Number.isInteger(userId) || userId <= 0) && !username) {
-    res.status(400).json({ ok: false, error: 'Debes enviar userId o usuario.' });
+app.get('/api/orders/user-orders', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const userId = Number.parseInt(authUser?.id, 10);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    res.status(400).json({ ok: false, error: 'No se pudo identificar al usuario autenticado.' });
     return;
   }
 
   try {
-    const whereClause = Number.isInteger(userId) && userId > 0
-      ? 'p.id_usuario = ?'
-      : 'u.usuario = ?';
     const [rows] = await pool.query(
       `
         SELECT
@@ -842,10 +864,10 @@ app.get('/api/orders/user-orders', async (req, res) => {
         FROM pedidos p
         INNER JOIN usuario u ON u.id_usuario = p.id_usuario
         LEFT JOIN producto pr ON pr.id_producto = p.id_producto
-        WHERE ${whereClause}
+        WHERE p.id_usuario = ?
         ORDER BY p.id_pedido DESC
       `,
-      [Number.isInteger(userId) && userId > 0 ? userId : username]
+      [userId]
     );
     res.json({ ok: true, orders: mapOrderRows(rows) });
   } catch (error) {
@@ -856,16 +878,22 @@ app.get('/api/orders/user-orders', async (req, res) => {
 });
 
 // Lista todos los pedidos para panel super usuario.
-app.get('/api/orders/admin-orders', async (req, res) => {
-  const adminUserId = Number.parseInt(req.query?.userId, 10);
+app.get('/api/orders/admin-orders', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const adminUserId = Number.parseInt(authUser?.id, 10);
   const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
-  const adminUsername = String(req.query?.usuario || '').trim();
+  const adminUsername = String(authUser?.usuario || '').trim();
   if (!adminUsername) {
     res.status(400).json({ ok: false, error: 'Identidad de administrador incompleta.' });
     return;
   }
 
   try {
+    if (!jwtManager.isAdmin(authUser)) {
+      res.status(403).json({ ok: false, error: 'No tienes permisos para ver todos los pedidos.' });
+      return;
+    }
+
     const adminLookupQuery = hasValidAdminUserId
       ? 'SELECT tipo_usuario FROM usuario WHERE id_usuario = ? AND usuario = ? LIMIT 1'
       : 'SELECT tipo_usuario FROM usuario WHERE usuario = ? LIMIT 1';
@@ -911,10 +939,11 @@ app.get('/api/orders/admin-orders', async (req, res) => {
 });
 
 // Actualiza el estado de un pedido (solo super usuario).
-app.post('/api/orders/admin-update-status', async (req, res) => {
-  const adminUserId = Number.parseInt(req.body?.adminUserId, 10);
+app.post('/api/orders/admin-update-status', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const adminUserId = Number.parseInt(authUser?.id, 10);
   const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
-  const adminUsername = String(req.body?.adminUsername || '').trim();
+  const adminUsername = String(authUser?.usuario || '').trim();
   const orderId = Number.parseInt(req.body?.orderId, 10);
   const normalizedStatus = parseRequestedOrderStatus(req.body?.status);
 
@@ -928,6 +957,11 @@ app.post('/api/orders/admin-update-status', async (req, res) => {
   }
 
   try {
+    if (!jwtManager.isAdmin(authUser)) {
+      res.status(403).json({ ok: false, error: 'No tienes permisos para actualizar pedidos.' });
+      return;
+    }
+
     const adminLookupQuery = hasValidAdminUserId
       ? 'SELECT tipo_usuario FROM usuario WHERE id_usuario = ? AND usuario = ? LIMIT 1'
       : 'SELECT tipo_usuario FROM usuario WHERE usuario = ? LIMIT 1';

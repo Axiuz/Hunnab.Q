@@ -197,15 +197,33 @@ function AccountPage({ app }) {
       return;
     }
 
+    setOrdersError('');
     setOrdersLoading(true);
     const [userOrdersResult, adminOrdersResult] = await Promise.all([
       app.orders.getUserOrders?.(usuarioActivo),
-      isSuperUser ? app.orders.getAdminOrders?.(usuarioActivo) : Promise.resolve([]),
+      isSuperUser
+        ? app.orders.getAdminOrders?.(usuarioActivo)
+        : Promise.resolve({ ok: true, orders: [], error: '' }),
     ]);
-    setPedidosUsuario(Array.isArray(userOrdersResult) ? userOrdersResult : []);
-    const safeAdminOrders = Array.isArray(adminOrdersResult) ? adminOrdersResult : [];
+
+    const userResult =
+      userOrdersResult && typeof userOrdersResult === 'object' && !Array.isArray(userOrdersResult)
+        ? userOrdersResult
+        : { ok: true, orders: Array.isArray(userOrdersResult) ? userOrdersResult : [], error: '' };
+    const adminResult =
+      adminOrdersResult && typeof adminOrdersResult === 'object' && !Array.isArray(adminOrdersResult)
+        ? adminOrdersResult
+        : { ok: true, orders: Array.isArray(adminOrdersResult) ? adminOrdersResult : [], error: '' };
+
+    setPedidosUsuario(Array.isArray(userResult.orders) ? userResult.orders : []);
+    const safeAdminOrders = Array.isArray(adminResult.orders) ? adminResult.orders : [];
     setPedidosAdmin(safeAdminOrders);
     setOrderStatusDrafts(isSuperUser ? buildOrderStatusDrafts(safeAdminOrders) : {});
+    if (!userResult.ok) {
+      setOrdersError(userResult.error || 'No se pudieron cargar tus pedidos.');
+    } else if (isSuperUser && !adminResult.ok) {
+      setOrdersError(adminResult.error || 'No se pudieron cargar los pedidos del panel admin.');
+    }
     setOrdersLoading(false);
   };
 
@@ -223,18 +241,36 @@ function AccountPage({ app }) {
         return;
       }
 
+      setOrdersError('');
       setOrdersLoading(true);
       const [userOrdersResult, adminOrdersResult] = await Promise.all([
         app.orders.getUserOrders?.(usuarioActivo),
-        isSuperUser ? app.orders.getAdminOrders?.(usuarioActivo) : Promise.resolve([]),
+        isSuperUser
+          ? app.orders.getAdminOrders?.(usuarioActivo)
+          : Promise.resolve({ ok: true, orders: [], error: '' }),
       ]);
       if (!isMounted) {
         return;
       }
-      setPedidosUsuario(Array.isArray(userOrdersResult) ? userOrdersResult : []);
-      const safeAdminOrders = Array.isArray(adminOrdersResult) ? adminOrdersResult : [];
+
+      const userResult =
+        userOrdersResult && typeof userOrdersResult === 'object' && !Array.isArray(userOrdersResult)
+          ? userOrdersResult
+          : { ok: true, orders: Array.isArray(userOrdersResult) ? userOrdersResult : [], error: '' };
+      const adminResult =
+        adminOrdersResult && typeof adminOrdersResult === 'object' && !Array.isArray(adminOrdersResult)
+          ? adminOrdersResult
+          : { ok: true, orders: Array.isArray(adminOrdersResult) ? adminOrdersResult : [], error: '' };
+
+      setPedidosUsuario(Array.isArray(userResult.orders) ? userResult.orders : []);
+      const safeAdminOrders = Array.isArray(adminResult.orders) ? adminResult.orders : [];
       setPedidosAdmin(safeAdminOrders);
       setOrderStatusDrafts(isSuperUser ? buildOrderStatusDrafts(safeAdminOrders) : {});
+      if (!userResult.ok) {
+        setOrdersError(userResult.error || 'No se pudieron cargar tus pedidos.');
+      } else if (isSuperUser && !adminResult.ok) {
+        setOrdersError(adminResult.error || 'No se pudieron cargar los pedidos del panel admin.');
+      }
       setOrdersLoading(false);
     };
 
@@ -321,7 +357,9 @@ function AccountPage({ app }) {
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: typeof auth?.getAuthorizationHeaders === 'function'
+          ? auth.getAuthorizationHeaders({ 'Content-Type': 'application/json' })
+          : { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adminUserId: hasValidAdminUserId ? adminUserId : null,
           adminUsername,
@@ -364,7 +402,9 @@ function AccountPage({ app }) {
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: typeof auth?.getAuthorizationHeaders === 'function'
+          ? auth.getAuthorizationHeaders({ 'Content-Type': 'application/json' })
+          : { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           adminUserId: hasValidAdminUserId ? adminUserId : null,
           adminUsername,
@@ -818,7 +858,7 @@ function AccountPage({ app }) {
                 {ordersSuccess ? <p className="cuenta-msg cuenta-msg--ok">{ordersSuccess}</p> : null}
                 {ordersLoading ? (
                   <p className="pedidos-empty">Cargando pedidos...</p>
-                ) : ordersForTab.length === 0 ? (
+                ) : ordersForTab.length === 0 && !ordersError ? (
                   <p className="pedidos-empty">
                     {ordersEmptyMessage}
                     {isSuperUser ? null : (
@@ -828,7 +868,7 @@ function AccountPage({ app }) {
                       </>
                     )}
                   </p>
-                ) : (
+                ) : ordersForTab.length === 0 ? null : (
                   <div className="pedidos-list">
                     {ordersForTab.map((pedido) => (
                       <article key={pedido.id} className="pedido-card">
@@ -865,6 +905,13 @@ function AccountPage({ app }) {
                             </button>
                           </div>
                         ) : null}
+                        <ul>
+                          {pedido.items.map((item) => (
+                            <li key={`${pedido.id}-${item.productId}`}>
+                              {`${item.quantity} x ${item.title} - ${app.currency.formatMXN(item.subtotal)}`}
+                            </li>
+                          ))}
+                        </ul>
                       </article>
                     ))}
                   </div>
