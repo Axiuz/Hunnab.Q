@@ -1155,7 +1155,9 @@ function AccountPage({ app }) {
                       <article key={id} className="admin-product-card">
                         <div className="admin-product-card__top">
                           <strong>{product.title}</strong>
-                          <span>{product._isHidden ? 'Oculto' : 'Visible'}</span>
+                          <span className={`admin-visibility-badge ${product._isHidden ? 'is-hidden' : 'is-visible'}`}>
+                            {product._isHidden ? 'Oculto' : 'Visible'}
+                          </span>
                         </div>
                         <p>{`ID: ${id}`}</p>
                         <p>{`Precio actual: ${app.currency.formatMXN(product.price)}`}</p>
