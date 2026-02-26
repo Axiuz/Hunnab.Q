@@ -726,6 +726,7 @@ app.post('/api/products/admin-create', jwtManager.authenticateRequired(), async 
   const dbProductId = Number.parseInt(req.body?.product?.dbProductId, 10);
   const hasValidDbProductId = Number.isInteger(dbProductId) && dbProductId > 0;
   const lookupTitleRaw = req.body?.product?.lookupTitle;
+  const forceCreate = Boolean(req.body?.product?.forceCreate);
   const title = String(req.body?.product?.title || '').trim();
   const lookupTitle = String(lookupTitleRaw || title).trim();
   const price = Number.parseFloat(req.body?.product?.price);
@@ -761,6 +762,24 @@ app.post('/api/products/admin-create', jwtManager.authenticateRequired(), async 
     }
 
     const dbCategory = mapCrudCategoryToDb(categoryKey, title);
+    if (forceCreate) {
+      const [insertResult] = await pool.query(
+        'INSERT INTO producto (nombre, descripcion, precio, stock, categoria) VALUES (?, ?, ?, ?, ?)',
+        [title, description || null, Number(price.toFixed(2)), stock, dbCategory]
+      );
+
+      res.status(201).json({
+        ok: true,
+        product: {
+          idProducto: Number(insertResult.insertId || 0),
+          nombre: title,
+          categoria: dbCategory,
+        },
+        created: true,
+      });
+      return;
+    }
+
     let existingId = null;
     if (hasValidDbProductId) {
       const [idRows] = await pool.query(
