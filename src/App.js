@@ -4,6 +4,7 @@ import Footer from './components/layout/Footer';
 import Header from './components/layout/Header';
 import MobileDrawer from './components/layout/MobileDrawer';
 import SearchPanel from './components/layout/SearchPanel';
+import BackButton from './components/BackButton';
 import { main } from './core/app-main';
 import RouteContent from './pages/RouteContent';
 
@@ -94,6 +95,9 @@ function App() {
       />
 
       <main>
+        <div className="page-back">
+          <BackButton />
+        </div>
         <RouteContent app={APP} route={route} />
       </main>
 
