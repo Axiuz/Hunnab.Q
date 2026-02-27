@@ -198,32 +198,6 @@ function CheckoutPage({ app }) {
     setPayment((prev) => ({ ...prev, cardCvv: cvvDigits }));
   };
 
-  const setPaymentField = (field, value) => {
-    setError('');
-    setSuccess('');
-    setPayment((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const onCardNumberChange = (event) => {
-    let value = event.target.value.replace(/\D/g, '');
-    value = value.slice(0, 16);
-    value = value.replace(/(.{4})/g, '$1 ').trim();
-    setPaymentField('cardNumber', value);
-  };
-
-  const onCardExpiryChange = (event) => {
-    let value = event.target.value.replace(/\D/g, '').slice(0, 4);
-    if (value.length >= 3) {
-      value = `${value.slice(0, 2)}/${value.slice(2)}`;
-    }
-    setPaymentField('cardExpiry', value);
-  };
-
-  const onCardCvvChange = (event) => {
-    const value = event.target.value.replace(/\D/g, '').slice(0, 3);
-    setPaymentField('cardCvv', value);
-  };
-
   const cardBrand = useMemo(() => {
     const raw = (payment.cardNumber || '').replace(/\s/g, '');
     if (raw.startsWith('4')) {
