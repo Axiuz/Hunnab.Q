@@ -198,6 +198,43 @@ function CheckoutPage({ app }) {
     setPayment((prev) => ({ ...prev, cardCvv: cvvDigits }));
   };
 
+  const setPaymentField = (field, value) => {
+    setError('');
+    setSuccess('');
+    setPayment((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const onCardNumberChange = (event) => {
+    let value = event.target.value.replace(/\D/g, '');
+    value = value.slice(0, 16);
+    value = value.replace(/(.{4})/g, '$1 ').trim();
+    setPaymentField('cardNumber', value);
+  };
+
+  const onCardExpiryChange = (event) => {
+    let value = event.target.value.replace(/\D/g, '').slice(0, 4);
+    if (value.length >= 3) {
+      value = `${value.slice(0, 2)}/${value.slice(2)}`;
+    }
+    setPaymentField('cardExpiry', value);
+  };
+
+  const onCardCvvChange = (event) => {
+    const value = event.target.value.replace(/\D/g, '').slice(0, 3);
+    setPaymentField('cardCvv', value);
+  };
+
+  const cardBrand = useMemo(() => {
+    const raw = (payment.cardNumber || '').replace(/\s/g, '');
+    if (raw.startsWith('4')) {
+      return { label: 'VISA', className: 'is-visa' };
+    }
+    if (/^5[1-5]/.test(raw)) {
+      return { label: 'MASTERCARD', className: 'is-mastercard' };
+    }
+    return { label: '', className: '' };
+  }, [payment.cardNumber]);
+
   const closePaidModal = () => {
     setShowPaidModal(false);
     if (pendingReceipt) {
@@ -435,7 +472,7 @@ function CheckoutPage({ app }) {
             {payment.method === 'tarjeta' ? (
               <div className="payment-body">
                 <div className="card-number-row">
-                  <input
+<input
                     type="text"
                     placeholder="4111 1111 1111 1111"
                     value={payment.cardNumber}
@@ -445,6 +482,9 @@ function CheckoutPage({ app }) {
                     maxLength={19}
                     required
                   />
+                  {cardBrand.label ? (
+                    <span className={`card-brand ${cardBrand.className}`}>{cardBrand.label}</span>
+                  ) : null}
                 </div>
                 <div className="grid-2">
                   <input
@@ -468,6 +508,7 @@ function CheckoutPage({ app }) {
                     required
                   />
                 </div>
+
                 <input
                   type="text"
                   placeholder="Nombre del titular"
