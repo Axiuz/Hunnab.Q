@@ -121,6 +121,21 @@ const hasPayPalCredentials = Boolean(
   String(process.env.PAYPAL_CLIENT_ID || '').trim() &&
   String(process.env.PAYPAL_CLIENT_SECRET || '').trim()
 );
+const emailJsConfig = {
+  serviceId: String(process.env.EMAILJS_SERVICE_ID || '').trim(),
+  templateId: String(process.env.EMAILJS_TEMPLATE_ID || '').trim(),
+  publicKey: String(process.env.EMAILJS_PUBLIC_KEY || '').trim(),
+  privateKey: String(process.env.EMAILJS_PRIVATE_KEY || '').trim(),
+};
+
+function isEmailJsConfigured() {
+  return Boolean(
+    emailJsConfig.serviceId &&
+    emailJsConfig.templateId &&
+    emailJsConfig.publicKey &&
+    emailJsConfig.privateKey
+  );
+}
 
 // Verifica que la API esta viva.
 app.get('/api/health', (_req, res) => {
@@ -356,6 +371,121 @@ function normalizeOrderItems(items) {
       };
     })
     .filter(Boolean);
+}
+
+function formatOrderDateForEmail(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value || '');
+  }
+  return date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+async function getOrderEmailConfirmationData(orderId) {
+  const parsedOrderId = Number.parseInt(orderId, 10);
+  if (!Number.isInteger(parsedOrderId) || parsedOrderId <= 0) {
+    return null;
+  }
+
+  const [rows] = await pool.query(
+    `
+      SELECT
+        p.id_pedido,
+        p.id_usuario,
+        p.fecha_creacion,
+        p.cantidad,
+        p.precio_unitario,
+        p.subtotal,
+        pr.nombre AS nombre_producto,
+        u.nombre AS nombre_usuario,
+        u.correo
+      FROM pedidos p
+      INNER JOIN usuario u ON u.id_usuario = p.id_usuario
+      LEFT JOIN producto pr ON pr.id_producto = p.id_producto
+      WHERE p.id_pedido = ?
+      LIMIT 1
+    `,
+    [parsedOrderId]
+  );
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  const correo = String(row.correo || '').trim();
+  if (!correo) {
+    return null;
+  }
+
+  const units = Number(row.cantidad || 0);
+  const unitPrice = Number(row.precio_unitario || 0);
+  const subtotal = Number(row.subtotal || 0);
+  const tax = Number((subtotal * 0.16).toFixed(2));
+  const total = Number((subtotal + tax).toFixed(2));
+  const itemName = String(row.nombre_producto || `Producto #${row.id_pedido}`).trim();
+  const fallbackImage = `${String(process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')}/imagenes/hunnabpng.png`;
+
+  return {
+    orderId: Number(row.id_pedido || parsedOrderId),
+    userId: Number(row.id_usuario || 0),
+    correo,
+    templateParams: {
+      // Campos nuevos compatibles con tu plantilla HTML actual
+      order_id: `PED-${row.id_pedido}`,
+      orders: [
+        {
+          name: itemName,
+          units,
+          price: unitPrice.toFixed(2),
+          image_url: fallbackImage,
+        },
+      ],
+      cost: {
+        tax: tax.toFixed(2),
+        total: total.toFixed(2),
+      },
+      nombre: String(row.nombre_usuario || '').trim() || 'Cliente',
+      pedidoID: `PED-${row.id_pedido}`,
+      fecha: formatOrderDateForEmail(row.fecha_creacion),
+      email: correo,
+      to_email: correo,
+      correo,
+    },
+  };
+}
+
+async function sendOrderEmailConfirmation(data) {
+  if (!data || !data.templateParams || !data.correo) {
+    throw new Error('ORDER_OR_EMAIL_NOT_FOUND');
+  }
+  if (!isEmailJsConfigured()) {
+    throw new Error('EMAILJS_NOT_CONFIGURED');
+  }
+
+  const emailJsResponse = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      service_id: emailJsConfig.serviceId,
+      template_id: emailJsConfig.templateId,
+      user_id: emailJsConfig.publicKey,
+      accessToken: emailJsConfig.privateKey,
+      template_params: data.templateParams,
+    }),
+  });
+
+  const emailJsText = await emailJsResponse.text().catch(() => '');
+  if (!emailJsResponse.ok) {
+    throw new Error(`EMAILJS_SEND_FAILED:${emailJsResponse.status}:${emailJsText || ''}`);
+  }
+
+  return {
+    orderId: data.orderId,
+    to: data.correo,
+  };
 }
 
 // Crear orden de PayPal y devolver approvalUrl
@@ -909,11 +1039,44 @@ app.post('/api/orders/create', jwtManager.authenticateRequired(), async (req, re
     }
 
     await connection.commit();
+    const primaryOrderId = insertedOrderIds[0];
+    const emailConfirmation = {
+      attempted: false,
+      sent: false,
+    };
+
+    if (isEmailJsConfigured()) {
+      emailConfirmation.attempted = true;
+      try {
+        const emailData = await getOrderEmailConfirmationData(primaryOrderId);
+        const sendResult = await sendOrderEmailConfirmation(emailData);
+        emailConfirmation.sent = true;
+        emailConfirmation.to = sendResult.to;
+      } catch (emailError) {
+        emailConfirmation.sent = false;
+        emailConfirmation.error = 'No se pudo enviar el correo de confirmacion.';
+        const rawMessage = String(emailError?.message || '');
+        if (rawMessage.startsWith('EMAILJS_SEND_FAILED:')) {
+          const messageParts = rawMessage.split(':');
+          emailConfirmation.provider = 'emailjs';
+          emailConfirmation.providerStatus = Number.parseInt(messageParts[1], 10) || 0;
+          emailConfirmation.providerDetails = messageParts.slice(2).join(':');
+        } else if (rawMessage === 'ORDER_OR_EMAIL_NOT_FOUND') {
+          emailConfirmation.provider = 'local';
+          emailConfirmation.providerDetails = 'No se encontro el pedido o correo en la base de datos.';
+        }
+        // eslint-disable-next-line no-console
+        console.error('Error enviando confirmacion automatica de pedido:', emailError);
+      }
+    } else {
+      emailConfirmation.reason = 'EMAILJS_NOT_CONFIGURED';
+    }
+
     res.status(201).json({
       ok: true,
       order: {
-        id: `PED-${insertedOrderIds[0]}`,
-        idPedido: insertedOrderIds[0],
+        id: `PED-${primaryOrderId}`,
+        idPedido: primaryOrderId,
         lineasPedido: insertedOrderIds,
         createdAt: new Date().toISOString(),
         status: 'En preparacion',
@@ -926,6 +1089,7 @@ app.post('/api/orders/create', jwtManager.authenticateRequired(), async (req, re
         total: safeTotal,
         items: normalizedItems,
       },
+      emailConfirmation,
     });
   } catch (error) {
     try {
@@ -938,6 +1102,66 @@ app.post('/api/orders/create', jwtManager.authenticateRequired(), async (req, re
     res.status(500).json({ ok: false, error: 'Error guardando pedido en MySQL.' });
   } finally {
     connection.release();
+  }
+});
+
+// Envia confirmacion por EmailJS usando datos desde MySQL:
+// - nombre/correo desde tabla `usuario`
+// - pedidoId desde tabla `pedidos`
+app.post('/api/orders/:orderId/email-confirmation', jwtManager.authenticateRequired(), async (req, res) => {
+  const authUser = jwtManager.getRequestUser(req);
+  const authUserId = Number.parseInt(authUser?.id, 10);
+  const isAdmin = jwtManager.isAdmin(authUser);
+  const orderId = Number.parseInt(req.params?.orderId, 10);
+
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    res.status(400).json({ ok: false, error: 'orderId invalido.' });
+    return;
+  }
+
+  if (!isEmailJsConfigured()) {
+    res.status(503).json({
+      ok: false,
+      error: 'EmailJS no esta configurado. Agrega EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY y EMAILJS_PRIVATE_KEY.',
+    });
+    return;
+  }
+
+  try {
+    const emailData = await getOrderEmailConfirmationData(orderId);
+    if (!emailData) {
+      res.status(404).json({ ok: false, error: 'No se encontro el pedido o correo del usuario.' });
+      return;
+    }
+
+    const ownerId = Number(emailData.userId || 0);
+    if (!isAdmin && ownerId !== authUserId) {
+      res.status(403).json({ ok: false, error: 'No tienes permisos para enviar correo de este pedido.' });
+      return;
+    }
+
+    const sendResult = await sendOrderEmailConfirmation(emailData);
+
+    res.json({
+      ok: true,
+      message: 'Correo de confirmacion enviado.',
+      orderId: sendResult.orderId,
+      to: sendResult.to,
+    });
+  } catch (error) {
+    const message = String(error?.message || '');
+    if (message.startsWith('EMAILJS_SEND_FAILED:')) {
+      const details = message.split(':').slice(2).join(':');
+      res.status(502).json({
+        ok: false,
+        error: 'EmailJS rechazo el envio del correo.',
+        details,
+      });
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.error('Error en /api/orders/:orderId/email-confirmation:', error);
+    res.status(500).json({ ok: false, error: 'No se pudo enviar el correo de confirmacion.' });
   }
 });
 
