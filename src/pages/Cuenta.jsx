@@ -738,7 +738,7 @@ function AccountPage({ app }) {
   // Render principal de la cuenta.
   return (
     <section className="auth-page">
-      <div className={`inicio-sesion ${usuarioActivo && isSuperUser ? 'inicio-sesion--super' : ''}`}>
+      <div className={`inicio-sesion ${usuarioActivo ? 'inicio-sesion--super' : ''}`}>
         <img
           className="inicio-sesion__logo"
           src="/imagenes/hunnabpng.png"
