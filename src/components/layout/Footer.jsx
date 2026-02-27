@@ -90,7 +90,7 @@ function Footer() {
           <p>
             <b>2026 All Rights Reserved HOIM.</b> Made with love by{' '}
             <a href="https://www.instagram.com/hunnab.q/" target="_blank" rel="noopener noreferrer">
-              HUNNAB.Q
+              @ HUNNAB.Q
             </a>
           </p>
         </div>

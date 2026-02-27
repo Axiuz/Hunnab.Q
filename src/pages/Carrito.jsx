@@ -11,9 +11,17 @@ function CartPage({ app }) {
     return app.cart.subscribe(syncItems);
   }, [app]);
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + item.subtotal, 0),
     [items]
+  );
+  const iva = useMemo(
+    () => Number((subtotal * 0.16).toFixed(2)),
+    [subtotal]
+  );
+  const total = useMemo(
+    () => Number((subtotal + iva).toFixed(2)),
+    [subtotal, iva]
   );
   const hasStockConflict = items.some((item) => item.stock <= 0 || item.quantity > item.stock);
 
@@ -137,8 +145,12 @@ function CartPage({ app }) {
         <aside className="cart-summary">
           <h2>Resumen</h2>
           <div className="cart-summary__line">
-            <span>Productos</span>
-            <strong>{app.currency.formatMXN(total)}</strong>
+            <span>Subtotal productos</span>
+            <strong>{app.currency.formatMXN(subtotal)}</strong>
+          </div>
+          <div className="cart-summary__line">
+            <span>IVA (16%)</span>
+            <strong>{app.currency.formatMXN(iva)}</strong>
           </div>
           <div className="cart-summary__line">
             <span>Envio</span>

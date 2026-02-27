@@ -1358,6 +1358,22 @@
       font-weight:700;
       color:#5e3f2d;
     }
+    .admin-visibility-badge{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:15px;
+      font-weight:700;
+      line-height:1;
+    }
+    .admin-visibility-badge.is-visible{
+      background:#daf4df;
+      color:#1f7a35;
+    }
+    .admin-visibility-badge.is-hidden{
+      background:#fde0e0;
+      color:#a22626;
+    }
     .admin-categories-grid{
       display:grid;
       grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));

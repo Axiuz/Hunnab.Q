@@ -28,6 +28,51 @@ const MEXICO_STATES = [
   'Estado de Mexico',
 ];
 
+function onlyDigits(value) {
+  return String(value || '').replace(/\D+/g, '');
+}
+
+function formatCardNumber(rawValue) {
+  const digits = onlyDigits(rawValue).slice(0, 16);
+  return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+}
+
+function formatCardExpiry(rawValue) {
+  const digits = onlyDigits(rawValue).slice(0, 4);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function getCheckoutPayPalParams() {
+  if (typeof window === 'undefined') {
+    return { status: '', token: '' };
+  }
+
+  const hash = String(window.location.hash || '');
+  if (!hash.startsWith('#/checkout?')) {
+    return { status: '', token: '' };
+  }
+
+  const query = hash.split('?')[1] || '';
+  const params = new URLSearchParams(query);
+  return {
+    status: String(params.get('paypal') || '').trim().toLowerCase(),
+    token: String(params.get('token') || '').trim(),
+  };
+}
+
+function clearCheckoutPayPalParams() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const hash = String(window.location.hash || '');
+  if (hash.startsWith('#/checkout?')) {
+    window.location.hash = '#/checkout';
+  }
+}
+
 function CheckoutPage({ app }) {
   const [draft, setDraft] = useState(() => app.checkout?.getDraft?.() ?? null);
   const [receipt, setReceipt] = useState(() => app.checkout?.getReceipt?.() ?? null);
@@ -51,6 +96,63 @@ function CheckoutPage({ app }) {
     }
   }, [app, sessionUser, receipt, draft]);
 
+  useEffect(() => {
+    if (!sessionUser || receipt || !draft || typeof app.checkout?.capturePayPalPayment !== 'function') {
+      return;
+    }
+
+    const paypalParams = getCheckoutPayPalParams();
+    if (!paypalParams.status) {
+      return;
+    }
+
+    if (paypalParams.status === 'cancel') {
+      setError('Pago cancelado en PayPal.');
+      setSuccess('');
+      clearCheckoutPayPalParams();
+      return;
+    }
+
+    if (paypalParams.status !== 'success') {
+      return;
+    }
+
+    if (!paypalParams.token) {
+      setError('PayPal regreso sin token de orden para confirmar el pago.');
+      setSuccess('');
+      clearCheckoutPayPalParams();
+      return;
+    }
+
+    let cancelled = false;
+    const runCapture = async () => {
+      setError('');
+      setSuccess('');
+      setIsProcessing(true);
+      const result = await app.checkout.capturePayPalPayment({ orderId: paypalParams.token });
+      if (cancelled) {
+        return;
+      }
+      setIsProcessing(false);
+
+      if (!result?.ok || !result.receipt) {
+        setError(result?.error || 'No se pudo confirmar el pago con PayPal.');
+        clearCheckoutPayPalParams();
+        return;
+      }
+
+      setSuccess('Pago con PayPal confirmado correctamente');
+      setPendingReceipt(result.receipt);
+      setShowPaidModal(true);
+      clearCheckoutPayPalParams();
+    };
+
+    runCapture();
+    return () => {
+      cancelled = true;
+    };
+  }, [app, sessionUser, receipt, draft]);
+
   const onShippingChange = (field) => (event) => {
     setError('');
     setSuccess('');
@@ -61,6 +163,39 @@ function CheckoutPage({ app }) {
     setError('');
     setSuccess('');
     setPayment((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const onPhoneChange = (event) => {
+    setError('');
+    setSuccess('');
+    const phoneDigits = onlyDigits(event.target.value).slice(0, 10);
+    setShipping((prev) => ({ ...prev, phone: phoneDigits }));
+  };
+
+  const onPostalCodeChange = (event) => {
+    setError('');
+    setSuccess('');
+    const postalDigits = onlyDigits(event.target.value).slice(0, 5);
+    setShipping((prev) => ({ ...prev, postalCode: postalDigits }));
+  };
+
+  const onCardNumberChange = (event) => {
+    setError('');
+    setSuccess('');
+    setPayment((prev) => ({ ...prev, cardNumber: formatCardNumber(event.target.value) }));
+  };
+
+  const onCardExpiryChange = (event) => {
+    setError('');
+    setSuccess('');
+    setPayment((prev) => ({ ...prev, cardExpiry: formatCardExpiry(event.target.value) }));
+  };
+
+  const onCardCvvChange = (event) => {
+    setError('');
+    setSuccess('');
+    const cvvDigits = onlyDigits(event.target.value).slice(0, 3);
+    setPayment((prev) => ({ ...prev, cardCvv: cvvDigits }));
   };
 
   const setPaymentField = (field, value) => {
@@ -113,26 +248,60 @@ function CheckoutPage({ app }) {
     if (event) {
       event.preventDefault();
     }
-    if (!app.checkout || typeof app.checkout.processSimulatedPayment !== 'function') {
+    if (!app.checkout) {
       setError('No esta disponible el checkout en esta version.');
       return;
     }
 
     const fullName = `${shipping.firstName} ${shipping.lastName}`.trim();
+    const shippingPayload = {
+      fullName,
+      email: shipping.email,
+      phone: shipping.phone,
+      address: shipping.address,
+      city: shipping.city,
+      state: shipping.state,
+      postalCode: shipping.postalCode,
+    };
+    const isPayPalFlow = payment.method === 'paypal';
 
     setError('');
     setSuccess('');
     setIsProcessing(true);
+
+    if (isPayPalFlow) {
+      if (typeof app.checkout.startPayPalPayment !== 'function') {
+        setIsProcessing(false);
+        setError('No esta disponible la integracion PayPal en esta version.');
+        return;
+      }
+
+      const result = await app.checkout.startPayPalPayment({
+        shipping: shippingPayload,
+        payment: { ...payment, method: 'paypal' },
+      });
+      setIsProcessing(false);
+
+      if (!result?.ok || !result.approvalUrl) {
+        setError(result?.error || 'No se pudo iniciar el pago con PayPal.');
+        return;
+      }
+
+      setSuccess('Redirigiendo a PayPal...');
+      if (typeof window !== 'undefined') {
+        window.location.assign(result.approvalUrl);
+      }
+      return;
+    }
+
+    if (typeof app.checkout.processSimulatedPayment !== 'function') {
+      setIsProcessing(false);
+      setError('No esta disponible el checkout en esta version.');
+      return;
+    }
+
     const result = await app.checkout.processSimulatedPayment({
-      shipping: {
-        fullName,
-        email: shipping.email,
-        phone: shipping.phone,
-        address: shipping.address,
-        city: shipping.city,
-        state: shipping.state,
-        postalCode: shipping.postalCode,
-      },
+      shipping: shippingPayload,
       payment,
     });
     setIsProcessing(false);
@@ -180,12 +349,13 @@ function CheckoutPage({ app }) {
   if (receipt) {
     const order = receipt.order || {};
     const orderItems = Array.isArray(order.items) ? order.items : [];
+    const paymentMethod = String(receipt.payment?.method || '').trim().toLowerCase();
     return (
       <>
         <div className="crumb">Inicio / Checkout / Pedido</div>
         <section className="checkout-result">
           <h1>Pago procesado</h1>
-          <p>{success || 'Tu pago simulado fue exitoso.'}</p>
+          <p>{success || (paymentMethod === 'paypal' ? 'Tu pago con PayPal fue exitoso.' : 'Tu pago simulado fue exitoso.')}</p>
           <article className="checkout-order-card">
             <h2>{`Pedido ${order.id || 'N/A'}`}</h2>
             <p>{`Estado: ${order.status || 'En preparacion'}`}</p>
@@ -228,7 +398,10 @@ function CheckoutPage({ app }) {
             type="tel"
             placeholder="Telefono"
             value={shipping.phone}
-            onChange={onShippingChange('phone')}
+            onChange={onPhoneChange}
+            inputMode="numeric"
+            autoComplete="tel"
+            maxLength={10}
           />
 
           <h2>Entrega</h2>
@@ -266,7 +439,10 @@ function CheckoutPage({ app }) {
             type="text"
             placeholder="Codigo postal"
             value={shipping.postalCode}
-            onChange={onShippingChange('postalCode')}
+            onChange={onPostalCodeChange}
+            inputMode="numeric"
+            autoComplete="postal-code"
+            maxLength={5}
             required
           />
           <select value={shipping.state} onChange={onShippingChange('state')} required>
@@ -303,6 +479,7 @@ function CheckoutPage({ app }) {
                     onChange={onCardNumberChange}
                     inputMode="numeric"
                     autoComplete="cc-number"
+                    maxLength={19}
                     required
                   />
                   {cardBrand.label ? (
@@ -317,15 +494,17 @@ function CheckoutPage({ app }) {
                     onChange={onCardExpiryChange}
                     inputMode="numeric"
                     autoComplete="cc-exp"
+                    maxLength={5}
                     required
                   />
                   <input
-                    type="password"
+                    type="text"
                     placeholder="123"
                     value={payment.cardCvv}
                     onChange={onCardCvvChange}
                     inputMode="numeric"
                     autoComplete="cc-csc"
+                    maxLength={3}
                     required
                   />
                 </div>
@@ -345,17 +524,22 @@ function CheckoutPage({ app }) {
             ) : null}
           </div>
 
-          <div className="payment-option">
-            <label className="payment-header" htmlFor="checkout-pay-transfer">
+          <div className={`payment-option ${payment.method === 'paypal' ? 'is-active' : ''}`}>
+            <label className="payment-header" htmlFor="checkout-pay-paypal">
               <input
-                id="checkout-pay-transfer"
+                id="checkout-pay-paypal"
                 type="radio"
                 name="payment-method"
-                checked={payment.method === 'transferencia'}
-                onChange={() => setPayment((prev) => ({ ...prev, method: 'transferencia' }))}
+                checked={payment.method === 'paypal'}
+                onChange={() => setPayment((prev) => ({ ...prev, method: 'paypal' }))}
               />
               PayPal
             </label>
+            {payment.method === 'paypal' ? (
+              <div className="payment-body">
+                <p>Seras redirigido al sitio seguro de PayPal para autorizar el pago.</p>
+              </div>
+            ) : null}
           </div>
 
           <div className="payment-option">
@@ -373,19 +557,25 @@ function CheckoutPage({ app }) {
 
           {error ? <p className="checkout-msg checkout-msg--error">{error}</p> : null}
           <button className="checkout-pay-btn" type="button" disabled={isProcessing} onClick={processPayment}>
-            {isProcessing ? 'Procesando pago...' : 'Pagar ahora'}
+            {isProcessing
+              ? payment.method === 'paypal'
+                ? 'Conectando con PayPal...'
+                : 'Procesando pago...'
+              : payment.method === 'paypal'
+                ? 'Continuar con PayPal'
+                : 'Pagar ahora'}
           </button>
         </section>
       </div>
 
       {showPaidModal ? (
-        <div className="checkout-modal-overlay" role="dialog" aria-modal="true" aria-label="Pago simulado">
+        <div className="checkout-modal-overlay" role="dialog" aria-modal="true" aria-label="Pago confirmado">
           <div className="checkout-modal">
             <div className="checkout-modal__content">
               <span className="checkout-modal__icon" aria-hidden="true">
                 ✅
               </span>
-              <span>{success || 'Pago simulado correctamente'}</span>
+              <span>{success || 'Pago completado correctamente'}</span>
             </div>
             <div className="checkout-modal__actions">
               <button type="button" className="checkout-modal__close" onClick={closePaidModal}>

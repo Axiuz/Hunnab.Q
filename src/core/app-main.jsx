@@ -850,6 +850,15 @@ class OrderManager {
       /Error occurred while trying to proxy/i.test(bodyText) ||
       /ECONNREFUSED/i.test(bodyText);
 
+    // A veces el frontend recibe HTML (index/fallback) con HTTP 200 cuando la API
+    // no esta enrutada correctamente. Se trata como error de backend ausente.
+    if (response.ok && (isMissingRoute || isHtmlResponse)) {
+      return {
+        ok: false,
+        error: 'La API no respondio JSON valido. Verifica que el backend este activo con "npm run api".',
+      };
+    }
+
     if (!response.ok && (isMissingRoute || isHtmlResponse || isProxyConnectionError)) {
       if (isMissingRoute || responseStatus === 404) {
         return {
@@ -916,6 +925,54 @@ class OrderManager {
         return { ok: false, error: result.error || 'No se pudo guardar el pedido en MySQL.' };
       }
       return { ok: true, order: result.data.order };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+
+  async createPayPalOrder({ total }) {
+    const safeTotal = Number(total);
+    if (!Number.isFinite(safeTotal) || safeTotal <= 0) {
+      return { ok: false, error: 'Total invalido para crear orden PayPal.' };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/paypal/create-order'), {
+        method: 'POST',
+        headers: this.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ total: Number(safeTotal.toFixed(2)) }),
+      });
+      const result = await this.parseResponse(response, 'No se pudo crear la orden de PayPal.');
+      if (!result.ok || !result.data?.approvalUrl || !result.data?.id) {
+        return { ok: false, error: result.error || 'No se pudo crear la orden de PayPal.' };
+      }
+      return {
+        ok: true,
+        id: String(result.data.id),
+        approvalUrl: String(result.data.approvalUrl),
+      };
+    } catch (error) {
+      return { ok: false, error: 'No hay conexion con el servidor API.' };
+    }
+  }
+
+  async capturePayPalOrder({ orderId }) {
+    const safeOrderId = String(orderId || '').trim();
+    if (!safeOrderId) {
+      return { ok: false, error: 'orderId es obligatorio para capturar PayPal.' };
+    }
+
+    try {
+      const response = await fetch(this.buildApiUrl('/api/paypal/capture-order'), {
+        method: 'POST',
+        headers: this.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ orderId: safeOrderId }),
+      });
+      const result = await this.parseResponse(response, 'No se pudo capturar la orden de PayPal.');
+      if (!result.ok) {
+        return { ok: false, error: result.error || 'No se pudo capturar la orden de PayPal.' };
+      }
+      return { ok: true, capture: result.data?.capture || null };
     } catch (error) {
       return { ok: false, error: 'No hay conexion con el servidor API.' };
     }
@@ -1042,24 +1099,26 @@ class CheckoutManager {
 
   readState() {
     if (!this.isBrowser()) {
-      return { draft: null, receipt: null };
+      return { draft: null, receipt: null, pendingPayPal: null };
     }
 
     try {
       const raw = window.localStorage.getItem(this.storageKey);
       if (!raw) {
-        return { draft: null, receipt: null };
+        return { draft: null, receipt: null, pendingPayPal: null };
       }
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return { draft: null, receipt: null };
+        return { draft: null, receipt: null, pendingPayPal: null };
       }
       return {
         draft: parsed.draft && typeof parsed.draft === 'object' ? parsed.draft : null,
         receipt: parsed.receipt && typeof parsed.receipt === 'object' ? parsed.receipt : null,
+        pendingPayPal:
+          parsed.pendingPayPal && typeof parsed.pendingPayPal === 'object' ? parsed.pendingPayPal : null,
       };
     } catch (error) {
-      return { draft: null, receipt: null };
+      return { draft: null, receipt: null, pendingPayPal: null };
     }
   }
 
@@ -1079,7 +1138,7 @@ class CheckoutManager {
   }
 
   clear() {
-    this.state = { draft: null, receipt: null };
+    this.state = { draft: null, receipt: null, pendingPayPal: null };
     this.persist();
   }
 
@@ -1119,53 +1178,32 @@ class CheckoutManager {
         total,
       },
       receipt: null,
+      pendingPayPal: null,
     };
     this.persist();
     return { ok: true, draft: this.state.draft };
   }
 
-  validateCheckoutPayload({ shipping, payment }) {
-    const fullName = String(shipping?.fullName || '').trim();
-    const email = String(shipping?.email || '').trim();
-    const address = String(shipping?.address || '').trim();
-    const city = String(shipping?.city || '').trim();
-    const state = String(shipping?.state || '').trim();
-    const postalCode = String(shipping?.postalCode || '').trim();
-    const method = String(payment?.method || '').trim();
-
-    if (!fullName || !email || !address || !city || !state || !postalCode) {
-      return { ok: false, error: 'Completa todos los datos de envio.' };
-    }
-    if (!method) {
-      return { ok: false, error: 'Selecciona un metodo de pago.' };
-    }
-
-    if (method === 'tarjeta') {
-      const cardNumber = String(payment?.cardNumber || '').replace(/\s+/g, '');
-      const cardHolder = String(payment?.cardHolder || '').trim();
-      const cardExpiry = String(payment?.cardExpiry || '').trim();
-      const cardCvv = String(payment?.cardCvv || '').trim();
-      if (cardNumber.length < 12 || !cardHolder || !cardExpiry || cardCvv.length < 3) {
-        return { ok: false, error: 'Completa los datos de la tarjeta para simular el pago.' };
-      }
-    }
-
-    return { ok: true };
+  normalizeShippingPayload(shipping = {}) {
+    return {
+      fullName: String(shipping.fullName || '').trim(),
+      email: String(shipping.email || '').trim(),
+      phone: String(shipping.phone || '').trim(),
+      address: String(shipping.address || '').trim(),
+      city: String(shipping.city || '').trim(),
+      state: String(shipping.state || '').trim(),
+      postalCode: String(shipping.postalCode || '').trim(),
+      shippingMethod: String(shipping.shippingMethod || 'estandar').trim(),
+    };
   }
 
-  async processSimulatedPayment({ shipping, payment }) {
-    const draft = this.getDraft();
-    if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) {
-      return { ok: false, error: 'No hay un checkout activo para procesar.' };
-    }
+  normalizePaymentPayload(payment = {}) {
+    return {
+      method: String(payment.method || '').trim(),
+    };
+  }
 
-    const validation = this.validateCheckoutPayload({ shipping, payment });
-    if (!validation.ok) {
-      return validation;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
+  async completeCheckoutAfterPaid({ draft, shipping, payment, paypalCapture = null }) {
     const orderResult = await this.orderManager.createFromCart({
       user: draft.user,
       items: draft.items,
@@ -1185,24 +1223,136 @@ class CheckoutManager {
       draft: null,
       receipt: {
         paidAt: new Date().toISOString(),
-        shipping: {
-          fullName: String(shipping.fullName || '').trim(),
-          email: String(shipping.email || '').trim(),
-          phone: String(shipping.phone || '').trim(),
-          address: String(shipping.address || '').trim(),
-          city: String(shipping.city || '').trim(),
-          state: String(shipping.state || '').trim(),
-          postalCode: String(shipping.postalCode || '').trim(),
-          shippingMethod: String(shipping.shippingMethod || 'estandar').trim(),
-        },
-        payment: {
-          method: String(payment.method || '').trim(),
-        },
+        shipping: this.normalizeShippingPayload(shipping),
+        payment: this.normalizePaymentPayload(payment),
         order: orderResult.order,
+        paypalCapture: paypalCapture || null,
       },
+      pendingPayPal: null,
     };
     this.persist();
     return { ok: true, receipt: this.state.receipt };
+  }
+
+  validateCheckoutPayload({ shipping, payment }) {
+    const fullName = String(shipping?.fullName || '').trim();
+    const email = String(shipping?.email || '').trim();
+    const phone = String(shipping?.phone || '').replace(/\D+/g, '').trim();
+    const address = String(shipping?.address || '').trim();
+    const city = String(shipping?.city || '').trim();
+    const state = String(shipping?.state || '').trim();
+    const postalCode = String(shipping?.postalCode || '').replace(/\D+/g, '').trim();
+    const method = String(payment?.method || '').trim();
+
+    if (!fullName || !email || !address || !city || !state || !postalCode) {
+      return { ok: false, error: 'Completa todos los datos de envio.' };
+    }
+    if (phone && phone.length !== 10) {
+      return { ok: false, error: 'El telefono debe tener 10 digitos.' };
+    }
+    if (postalCode.length !== 5) {
+      return { ok: false, error: 'El codigo postal debe tener 5 digitos.' };
+    }
+    if (!method) {
+      return { ok: false, error: 'Selecciona un metodo de pago.' };
+    }
+
+    if (method === 'tarjeta') {
+      const cardNumber = String(payment?.cardNumber || '').replace(/\s+/g, '');
+      const cardHolder = String(payment?.cardHolder || '').trim();
+      const cardExpiry = String(payment?.cardExpiry || '').trim();
+      const cardCvv = String(payment?.cardCvv || '').trim();
+      const expiryMatch = /^(\d{2})\/(\d{2})$/.exec(cardExpiry);
+      const expiryMonth = expiryMatch ? Number(expiryMatch[1]) : 0;
+      if (
+        cardNumber.length !== 16 ||
+        !cardHolder ||
+        !expiryMatch ||
+        !Number.isInteger(expiryMonth) ||
+        expiryMonth < 1 ||
+        expiryMonth > 12 ||
+        cardCvv.length !== 3
+      ) {
+        return { ok: false, error: 'Completa los datos de la tarjeta para simular el pago.' };
+      }
+    }
+
+    return { ok: true };
+  }
+
+  async processSimulatedPayment({ shipping, payment }) {
+    const draft = this.getDraft();
+    if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) {
+      return { ok: false, error: 'No hay un checkout activo para procesar.' };
+    }
+
+    const validation = this.validateCheckoutPayload({ shipping, payment });
+    if (!validation.ok) {
+      return validation;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    return this.completeCheckoutAfterPaid({
+      draft,
+      shipping,
+      payment,
+      paypalCapture: null,
+    });
+  }
+
+  async startPayPalPayment({ shipping, payment }) {
+    const draft = this.getDraft();
+    if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) {
+      return { ok: false, error: 'No hay un checkout activo para procesar.' };
+    }
+
+    const validation = this.validateCheckoutPayload({ shipping, payment: { ...payment, method: 'paypal' } });
+    if (!validation.ok) {
+      return validation;
+    }
+
+    const createResult = await this.orderManager.createPayPalOrder({ total: draft.total });
+    if (!createResult?.ok || !createResult.approvalUrl || !createResult.id) {
+      return { ok: false, error: createResult?.error || 'No se pudo crear la orden de PayPal.' };
+    }
+
+    this.state = {
+      ...this.state,
+      pendingPayPal: {
+        orderId: createResult.id,
+        shipping: this.normalizeShippingPayload(shipping),
+        payment: this.normalizePaymentPayload({ ...payment, method: 'paypal' }),
+        createdAt: new Date().toISOString(),
+      },
+    };
+    this.persist();
+    return { ok: true, orderId: createResult.id, approvalUrl: createResult.approvalUrl };
+  }
+
+  async capturePayPalPayment({ orderId }) {
+    const draft = this.getDraft();
+    if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) {
+      return { ok: false, error: 'No hay un checkout activo para procesar.' };
+    }
+
+    const safeOrderId = String(orderId || '').trim();
+    if (!safeOrderId) {
+      return { ok: false, error: 'No se recibio el identificador de orden de PayPal.' };
+    }
+
+    const captureResult = await this.orderManager.capturePayPalOrder({ orderId: safeOrderId });
+    if (!captureResult?.ok) {
+      return { ok: false, error: captureResult?.error || 'No se pudo capturar la orden de PayPal.' };
+    }
+
+    const pendingShipping = this.state.pendingPayPal?.shipping || {};
+    const pendingPayment = this.state.pendingPayPal?.payment || { method: 'paypal' };
+    return this.completeCheckoutAfterPaid({
+      draft,
+      shipping: pendingShipping,
+      payment: { ...pendingPayment, method: 'paypal' },
+      paypalCapture: captureResult.capture,
+    });
   }
 }
 
