@@ -62,6 +62,17 @@
       text-transform:uppercase;letter-spacing:.06em;font-size:13px;
     }
     .nav-link:hover{background:var(--card)}
+    .nav-link--button{
+      border:0;
+      background:transparent;
+      color:inherit;
+      cursor:pointer;
+      font:inherit;
+    }
+    .header-menu-toggle,
+    .header-search-toggle{
+      display:none;
+    }
 
     /* Mega menu */
     .mega{
@@ -312,6 +323,10 @@
       .nav{display:none}
       .header__inner{grid-template-columns:auto 1fr auto}
       .logo{justify-content:flex-start}
+      .header-menu-toggle,
+      .header-search-toggle{
+        display:inline-flex;
+      }
     }
 
     /* Layout general */

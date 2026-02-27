@@ -6,7 +6,7 @@ function Header({ onOpenMenu, onOpenSearch, cartCount = 0 }) {
       <div className="header__inner">
         <div className="left">
           <button
-            className="icon-btn"
+            className="icon-btn header-menu-toggle"
             id="openMenu"
             aria-label="Abrir menu"
             onClick={onOpenMenu}
@@ -15,7 +15,7 @@ function Header({ onOpenMenu, onOpenSearch, cartCount = 0 }) {
             ☰
           </button>
           <button
-            className="icon-btn"
+            className="icon-btn header-search-toggle"
             id="openSearch"
             aria-label="Buscar"
             onClick={onOpenSearch}
@@ -112,6 +112,18 @@ function Header({ onOpenMenu, onOpenSearch, cartCount = 0 }) {
               QUIENES SOMOS
             </a>
           </div>
+
+          <div className="nav-item">
+            <button
+              className="nav-link nav-link--button"
+              aria-label="Buscar"
+              onClick={onOpenSearch}
+              type="button"
+            >
+              🔎 BUSCAR
+            </button>
+          </div>
+
         </div>
       </nav>
     </header>
