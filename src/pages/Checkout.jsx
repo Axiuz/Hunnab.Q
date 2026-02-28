@@ -51,15 +51,31 @@ function getCheckoutPayPalParams() {
   }
 
   const hash = String(window.location.hash || '');
-  if (!hash.startsWith('#/checkout?')) {
+  if (!hash.startsWith('#/checkout')) {
     return { status: '', token: '' };
   }
 
-  const query = hash.split('?')[1] || '';
-  const params = new URLSearchParams(query);
+  const hashQuery = hash.includes('?') ? hash.split('?')[1] || '' : '';
+  const hashParams = new URLSearchParams(hashQuery);
+  const searchParams = new URLSearchParams(String(window.location.search || ''));
+
+  let status = String(hashParams.get('paypal') || searchParams.get('paypal') || '').trim().toLowerCase();
+  const token = String(
+    hashParams.get('token') ||
+    searchParams.get('token') ||
+    hashParams.get('orderId') ||
+    searchParams.get('orderId') ||
+    ''
+  ).trim();
+
+  // Algunos retornos de PayPal incluyen token sin parametro "paypal".
+  if (!status && token) {
+    status = 'success';
+  }
+
   return {
-    status: String(params.get('paypal') || '').trim().toLowerCase(),
-    token: String(params.get('token') || '').trim(),
+    status,
+    token,
   };
 }
 
@@ -67,10 +83,16 @@ function clearCheckoutPayPalParams() {
   if (typeof window === 'undefined') {
     return;
   }
-  const hash = String(window.location.hash || '');
-  if (hash.startsWith('#/checkout?')) {
-    window.location.hash = '#/checkout';
-  }
+
+  const url = new URL(window.location.href);
+  const searchParams = new URLSearchParams(url.search);
+  ['paypal', 'token', 'orderId', 'PayerID'].forEach((key) => searchParams.delete(key));
+
+  const hash = String(url.hash || '');
+  const nextHash = hash.startsWith('#/checkout?') ? '#/checkout' : hash;
+  const nextSearch = searchParams.toString();
+  const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}${nextHash}`;
+  window.history.replaceState(null, '', nextUrl);
 }
 
 function CheckoutPage({ app }) {
@@ -142,8 +164,10 @@ function CheckoutPage({ app }) {
       }
 
       setSuccess('Pago con PayPal confirmado correctamente');
-      setPendingReceipt(result.receipt);
-      setShowPaidModal(true);
+      setDraft(null);
+      setReceipt(result.receipt);
+      setPendingReceipt(null);
+      setShowPaidModal(false);
       clearCheckoutPayPalParams();
     };
 

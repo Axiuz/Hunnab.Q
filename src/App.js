@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import './App.css';
 import Footer from './components/layout/Footer';
 import Header from './components/layout/Header';
@@ -14,7 +14,6 @@ const APP = main();
 function App() {
   // Estado de interfaz (navegacion + overlays + drawer movil)
   const [route, setRoute] = useState(() => APP.router.getCurrentRoute());
-  const [cartCount, setCartCount] = useState(() => APP.cart.getCount());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -22,6 +21,11 @@ function App() {
     collares: false,
     pulseras: false,
   });
+  const cartCount = useSyncExternalStore(
+    (listener) => APP.cart.subscribe(listener),
+    () => APP.cart.getCount(),
+    () => 0
+  );
 
   /** Cierra menu movil y buscador. */
   const closePanels = useCallback(() => {
@@ -40,8 +44,6 @@ function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [closePanels]);
-
-  useEffect(() => APP.cart.subscribe(() => setCartCount(APP.cart.getCount())), []);
 
   useEffect(() => {
     const onEsc = (event) => {

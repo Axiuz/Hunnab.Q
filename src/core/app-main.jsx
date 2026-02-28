@@ -583,7 +583,8 @@ class CurrencyManager {
 /** Router hash minimalista (sin libreria externa). */
 class RouteManager {
   parseHash(hashValue) {
-    const value = (hashValue || '').replace(/^#\/?/, '');
+    const rawValue = (hashValue || '').replace(/^#\/?/, '');
+    const value = rawValue.split('?')[0].replace(/\/+$/, '');
 
     if (!value) {
       return { kind: 'home' };
@@ -1091,6 +1092,7 @@ class CheckoutManager {
     this.orderManager = orderManager;
     this.storageKey = storageKey;
     this.state = this.readState();
+    this.payPalCaptureLocks = new Set();
   }
 
   isBrowser() {
@@ -1203,7 +1205,7 @@ class CheckoutManager {
     };
   }
 
-  async completeCheckoutAfterPaid({ draft, shipping, payment, paypalCapture = null }) {
+  async completeCheckoutAfterPaid({ draft, shipping, payment, paypalCapture = null, paypalOrderId = '' }) {
     const orderResult = await this.orderManager.createFromCart({
       user: draft.user,
       items: draft.items,
@@ -1227,6 +1229,7 @@ class CheckoutManager {
         payment: this.normalizePaymentPayload(payment),
         order: orderResult.order,
         paypalCapture: paypalCapture || null,
+        paypalOrderId: String(paypalOrderId || '').trim(),
       },
       pendingPayPal: null,
     };
@@ -1340,19 +1343,43 @@ class CheckoutManager {
       return { ok: false, error: 'No se recibio el identificador de orden de PayPal.' };
     }
 
-    const captureResult = await this.orderManager.capturePayPalOrder({ orderId: safeOrderId });
-    if (!captureResult?.ok) {
-      return { ok: false, error: captureResult?.error || 'No se pudo capturar la orden de PayPal.' };
+    const existingReceipt = this.state.receipt;
+    const existingPayPalOrderId = String(existingReceipt?.paypalOrderId || '').trim();
+    if (existingReceipt && existingPayPalOrderId && existingPayPalOrderId === safeOrderId) {
+      return { ok: true, receipt: existingReceipt };
     }
 
-    const pendingShipping = this.state.pendingPayPal?.shipping || {};
-    const pendingPayment = this.state.pendingPayPal?.payment || { method: 'paypal' };
-    return this.completeCheckoutAfterPaid({
-      draft,
-      shipping: pendingShipping,
-      payment: { ...pendingPayment, method: 'paypal' },
-      paypalCapture: captureResult.capture,
-    });
+    if (this.payPalCaptureLocks.has(safeOrderId)) {
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const receiptWhileWaiting = this.state.receipt;
+        const receiptOrderId = String(receiptWhileWaiting?.paypalOrderId || '').trim();
+        if (receiptWhileWaiting && receiptOrderId === safeOrderId) {
+          return { ok: true, receipt: receiptWhileWaiting };
+        }
+      }
+      return { ok: false, error: 'El pago de PayPal ya se esta confirmando. Intenta recargar la pagina.' };
+    }
+
+    this.payPalCaptureLocks.add(safeOrderId);
+    try {
+      const captureResult = await this.orderManager.capturePayPalOrder({ orderId: safeOrderId });
+      if (!captureResult?.ok) {
+        return { ok: false, error: captureResult?.error || 'No se pudo capturar la orden de PayPal.' };
+      }
+
+      const pendingShipping = this.state.pendingPayPal?.shipping || {};
+      const pendingPayment = this.state.pendingPayPal?.payment || { method: 'paypal' };
+      return this.completeCheckoutAfterPaid({
+        draft,
+        shipping: pendingShipping,
+        payment: { ...pendingPayment, method: 'paypal' },
+        paypalCapture: captureResult.capture,
+        paypalOrderId: safeOrderId,
+      });
+    } finally {
+      this.payPalCaptureLocks.delete(safeOrderId);
+    }
   }
 }
 

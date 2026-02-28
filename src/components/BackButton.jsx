@@ -22,7 +22,7 @@ function BackButton({ fallbackHash = '#/' }) {
 
   return (
     <button className="back-nav-btn" type="button" onClick={handleBack} aria-label="Volver">
-      {'< Volver'}
+      {'Volver'}
     </button>
   );
 }
