@@ -424,7 +424,10 @@ async function getOrderEmailConfirmationData(orderId) {
   const tax = Number((subtotal * 0.16).toFixed(2));
   const total = Number((subtotal + tax).toFixed(2));
   const itemName = String(row.nombre_producto || `Producto #${row.id_pedido}`).trim();
-  const fallbackImage = `${String(process.env.APP_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')}/imagenes/hunnabpng.png`;
+  const frontendBaseUrl = String(
+    process.env.FRONTEND_BASE_URL || process.env.CORS_ORIGIN || 'http://localhost:3000'
+  ).replace(/\/$/, '');
+  const fallbackImage = `${frontendBaseUrl}/imagenes/hunnabpng.png`;
 
   return {
     orderId: Number(row.id_pedido || parsedOrderId),
@@ -499,7 +502,9 @@ app.post('/api/paypal/create-order', jwtManager.authenticateRequired(), async (r
       return;
     }
 
-    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
+    const baseUrl = String(
+      process.env.FRONTEND_BASE_URL || process.env.CORS_ORIGIN || 'http://localhost:3000'
+    ).replace(/\/$/, '');
     const currency = process.env.PAYPAL_CURRENCY || 'MXN';
 
     // El front te manda total (por ejemplo draft.total)
