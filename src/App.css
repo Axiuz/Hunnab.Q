@@ -62,6 +62,17 @@
       text-transform:uppercase;letter-spacing:.06em;font-size:13px;
     }
     .nav-link:hover{background:var(--card)}
+    .nav-link--button{
+      border:0;
+      background:transparent;
+      color:inherit;
+      cursor:pointer;
+      font:inherit;
+    }
+    .header-menu-toggle,
+    .header-search-toggle{
+      display:none;
+    }
 
     /* Mega menu */
     .mega{
@@ -312,6 +323,10 @@
       .nav{display:none}
       .header__inner{grid-template-columns:auto 1fr auto}
       .logo{justify-content:flex-start}
+      .header-menu-toggle,
+      .header-search-toggle{
+        display:inline-flex;
+      }
     }
 
     /* Layout general */
@@ -1357,6 +1372,22 @@
       font-size:11px;
       font-weight:700;
       color:#5e3f2d;
+    }
+    .admin-visibility-badge{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:15px;
+      font-weight:700;
+      line-height:1;
+    }
+    .admin-visibility-badge.is-visible{
+      background:#daf4df;
+      color:#1f7a35;
+    }
+    .admin-visibility-badge.is-hidden{
+      background:#fde0e0;
+      color:#a22626;
     }
     .admin-categories-grid{
       display:grid;

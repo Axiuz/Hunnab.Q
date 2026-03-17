@@ -21,6 +21,8 @@ function ProductPage({ app, productId }) {
     app.images.normalize(product.img),
     app.images.normalize(product.imgHover || product.img),
   ];
+  const unitPrice = Number(product.price || 0);
+  const selectedTotal = Number((unitPrice * qty).toFixed(2));
   const availableStock = Math.max(0, Number.parseInt(product.stock, 10) || 0);
   const isOutOfStock = availableStock <= 0;
 
@@ -71,7 +73,7 @@ function ProductPage({ app, productId }) {
 
         <aside className="side">
           <h2 style={{ margin: '6px 0 6px', fontSize: '22px' }}>{product.title}</h2>
-          <div className="price">{app.currency.formatMXN(product.price)}</div>
+          <div className="price">{app.currency.formatMXN(unitPrice)}</div>
           <div className={`stock ${isOutOfStock ? 'is-out' : ''}`}>
             <span className="dot" />
             <span>{isOutOfStock ? 'Sin stock' : `Stock disponible: ${availableStock}`}</span>
@@ -106,7 +108,7 @@ function ProductPage({ app, productId }) {
           <button className="btn primary" type="button" onClick={addToCart} disabled={isOutOfStock}>
             {isOutOfStock
               ? 'SIN STOCK'
-              : `ANADIR AL CARRITO - ${app.currency.formatMXN(product.price)}`}
+              : `ANADIR AL CARRITO - ${app.currency.formatMXN(selectedTotal)}`}
           </button>
         </aside>
       </div>

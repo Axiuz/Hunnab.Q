@@ -384,7 +384,7 @@ function AccountPage({ app }) {
     }
   };
 
-  const syncUpdatedProductToMysql = async ({ productId, previousTitle, updatedDraft }) => {
+  const syncUpdatedProductToMysql = async ({ productId, previousTitle, updatedDraft, forceCreate = false }) => {
     const adminUserId = Number.parseInt(usuarioActivo?.id, 10);
     const hasValidAdminUserId = Number.isInteger(adminUserId) && adminUserId > 0;
     const adminUsername = String(usuarioActivo?.usuario || '').trim();
@@ -411,6 +411,7 @@ function AccountPage({ app }) {
           product: {
             localId: String(productId || '').trim(),
             lookupTitle: String(previousTitle || '').trim(),
+            forceCreate: Boolean(forceCreate),
             title: String(updatedDraft?.title || '').trim(),
             price: Number.parseFloat(updatedDraft?.price),
             stock: Number.parseInt(updatedDraft?.stock, 10),
@@ -514,6 +515,16 @@ function AccountPage({ app }) {
   const saveProductChanges = async (productId, product, categories) => {
     clearAdminMessages();
     const draft = getProductDraft(productId, product, categories);
+    const previousTitle = String(product?.title || '').trim();
+    const nextTitle = String(draft?.title || '').trim();
+    const previousPrice = Number.parseFloat(product?.price);
+    const nextPrice = Number.parseFloat(draft?.price);
+    const normalizedPreviousPrice = Number.isFinite(previousPrice) ? Number(previousPrice.toFixed(2)) : null;
+    const normalizedNextPrice = Number.isFinite(nextPrice) ? Number(nextPrice.toFixed(2)) : null;
+    const hasTitleChanged = nextTitle !== previousTitle;
+    const hasPriceChanged = normalizedPreviousPrice !== normalizedNextPrice;
+    const shouldCreateNewProductInMysql = hasTitleChanged && hasPriceChanged;
+
     const result = app.catalog?.adminUpdateProduct?.({
       id: productId,
       title: draft.title,
@@ -530,14 +541,19 @@ function AccountPage({ app }) {
 
     const syncResult = await syncUpdatedProductToMysql({
       productId,
-      previousTitle: product?.title,
+      previousTitle,
       updatedDraft: draft,
+      forceCreate: shouldCreateNewProductInMysql,
     });
     if (!syncResult?.ok) {
-      setAdminError(`${syncResult?.error || 'No se pudo actualizar en MySQL.'} Los cambios quedaron guardados localmente.`);
+      setAdminError(`${syncResult?.error || 'No se pudo guardar en MySQL.'} Los cambios quedaron guardados localmente.`);
       setAdminSuccess('Producto actualizado localmente.');
     } else {
-      setAdminSuccess('Producto actualizado y sincronizado en MySQL.');
+      setAdminSuccess(
+        shouldCreateNewProductInMysql
+          ? 'Producto actualizado localmente y duplicado en MySQL con nuevo ID.'
+          : 'Producto actualizado y sincronizado en MySQL.'
+      );
     }
 
     setEditDrafts((prev) => {
@@ -722,7 +738,7 @@ function AccountPage({ app }) {
   // Render principal de la cuenta.
   return (
     <section className="auth-page">
-      <div className={`inicio-sesion ${usuarioActivo && isSuperUser ? 'inicio-sesion--super' : ''}`}>
+      <div className={`inicio-sesion ${usuarioActivo ? 'inicio-sesion--super' : ''}`}>
         <img
           className="inicio-sesion__logo"
           src="/imagenes/hunnabpng.png"
@@ -1155,7 +1171,9 @@ function AccountPage({ app }) {
                       <article key={id} className="admin-product-card">
                         <div className="admin-product-card__top">
                           <strong>{product.title}</strong>
-                          <span>{product._isHidden ? 'Oculto' : 'Visible'}</span>
+                          <span className={`admin-visibility-badge ${product._isHidden ? 'is-hidden' : 'is-visible'}`}>
+                            {product._isHidden ? 'Oculto' : 'Visible'}
+                          </span>
                         </div>
                         <p>{`ID: ${id}`}</p>
                         <p>{`Precio actual: ${app.currency.formatMXN(product.price)}`}</p>
